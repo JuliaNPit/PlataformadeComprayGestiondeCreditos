@@ -15,22 +15,23 @@ datasource db {
 // ============================================
 
 model User {
-  id            String    @id @default(cuid())
-  code          String    @unique // Código estudiantil
-  email         String    @unique
-  name          String
-  password      String    // Hash bcrypt
-  program       String    // Programa académico (ej: Ingeniería de Sistemas)
-  isActive      Boolean   @default(true)
-  role          UserRole  @default(STUDENT)
-  
+  id       String   @id @default(cuid())
+  code     String   @unique // Código estudiantil
+  email    String   @unique
+  name     String
+  password String // Hash bcrypt
+  program  String // Programa académico (ej: Ingeniería de Sistemas)
+  isActive Boolean  @default(true)
+  role     UserRole @default(STUDENT)
+
   // Relaciones
-  wallet        Wallet?
-  sentTransfers      Transfer[] @relation("sender")
-  receivedTransfers  Transfer[] @relation("receiver")
-  pqrsCreated        PQRS[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  wallet            Wallet?
+  sentTransfers     Transfer[] @relation("sender")
+  receivedTransfers Transfer[] @relation("receiver")
+  pqrsCreated       PQRS[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  payments          Payment[]
 
   @@index([code])
   @@index([email])
@@ -47,16 +48,16 @@ enum UserRole {
 // ============================================
 
 model Wallet {
-  id            String    @id @default(cuid())
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  balance       Float     @default(0) // Saldo en créditos
-  totalSpent    Float     @default(0) // Total gastado histórico
-  
-  transactions  Transaction[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance    Float @default(0) // Saldo en créditos
+  totalSpent Float @default(0) // Total gastado histórico
+
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   @@index([userId])
 }
@@ -66,26 +67,26 @@ model Wallet {
 // ============================================
 
 model Transaction {
-  id            String    @id @default(cuid())
-  walletId      String
-  wallet        Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade)
-  
-  type          TransactionType // PURCHASE, TRANSFER_SENT, TRANSFER_RECEIVED, CONSUMPTION
-  amount        Float     // Cantidad de créditos o valor en dinero
-  description   String    // Descripción legible (ej: "Compra de 5 créditos", "Transferencia de Juan")
-  
+  id       String @id @default(cuid())
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type        TransactionType // PURCHASE, TRANSFER_SENT, TRANSFER_RECEIVED, CONSUMPTION
+  amount      Float // Cantidad de créditos o valor en dinero
+  description String // Descripción legible (ej: "Compra de 5 créditos", "Transferencia de Juan")
+
   // Para transferencias
-  transferId    String?
-  transfer      Transfer? @relation(fields: [transferId], references: [id])
-  
+  transferId String?
+  transfer   Transfer? @relation(fields: [transferId], references: [id])
+
   // Para compras
-  paymentId     String?
-  payment       Payment?  @relation(fields: [paymentId], references: [id])
-  
-  status        TransactionStatus @default(PENDING) // PENDING, COMPLETED, FAILED, REVERSED
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  status TransactionStatus @default(PENDING) // PENDING, COMPLETED, FAILED, REVERSED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([walletId])
   @@index([type])
@@ -94,17 +95,17 @@ model Transaction {
 }
 
 enum TransactionType {
-  PURCHASE        // Compra de créditos
-  TRANSFER_SENT   // Transferencia enviada
+  PURCHASE // Compra de créditos
+  TRANSFER_SENT // Transferencia enviada
   TRANSFER_RECEIVED // Transferencia recibida
-  CONSUMPTION     // Consumo en restaurante
+  CONSUMPTION // Consumo en restaurante
 }
 
 enum TransactionStatus {
-  PENDING    // En proceso
-  COMPLETED  // Completado
-  FAILED     // Falló
-  REVERSED   // Revertido
+  PENDING // En proceso
+  COMPLETED // Completado
+  FAILED // Falló
+  REVERSED // Revertido
 }
 
 // ============================================
@@ -112,21 +113,21 @@ enum TransactionStatus {
 // ============================================
 
 model Payment {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  amount          Float     // Monto pagado en dinero
-  credits         Float     // Cantidad de créditos comprados
-  method          PaymentMethod // PSE, NEQUI, TARJETA
-  
-  status          PaymentStatus @default(PENDING)
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount  Float // Monto pagado en dinero
+  credits Float // Cantidad de créditos comprados
+  method  PaymentMethod // PSE, NEQUI, TARJETA
+
+  status               PaymentStatus @default(PENDING)
   gatewayTransactionId String? // ID devuelto por la pasarela
-  
-  transactions    Transaction[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -139,10 +140,10 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
-  PENDING      // Esperando confirmación de pasarela
-  APPROVED     // Aprobado
-  REJECTED     // Rechazado
-  CANCELLED    // Cancelado
+  PENDING // Esperando confirmación de pasarela
+  APPROVED // Aprobado
+  REJECTED // Rechazado
+  CANCELLED // Cancelado
 }
 
 // ============================================
@@ -150,21 +151,21 @@ enum PaymentStatus {
 // ============================================
 
 model Transfer {
-  id              String    @id @default(cuid())
-  
-  senderId        String
-  sender          User      @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
-  
-  receiverId      String
-  receiver        User      @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  
-  amount          Float     // Cantidad de créditos transferidos
-  status          TransferStatus @default(PENDING)
-  
-  transactions    Transaction[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id String @id @default(cuid())
+
+  senderId String
+  sender   User   @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User   @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  amount Float // Cantidad de créditos transferidos
+  status TransferStatus @default(PENDING)
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([senderId])
   @@index([receiverId])
@@ -172,10 +173,10 @@ model Transfer {
 }
 
 enum TransferStatus {
-  PENDING    // En proceso
-  COMPLETED  // Completada
-  FAILED     // Falló
-  CANCELLED  // Cancelada
+  PENDING // En proceso
+  COMPLETED // Completada
+  FAILED // Falló
+  CANCELLED // Cancelada
 }
 
 // ============================================
@@ -183,24 +184,24 @@ enum TransferStatus {
 // ============================================
 
 model PQRS {
-  id              String    @id @default(cuid())
-  ticketNumber    String    @unique // Número de ticket único
-  
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  type            PQRSType
-  title           String
-  description     String
-  status          PQRSStatus @default(ABIERTO)
-  priority        Priority @default(NORMAL)
-  
-  attachments     PQRSAttachment[]
-  updates         PQRSUpdate[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  resolvedAt      DateTime?
+  id           String @id @default(cuid())
+  ticketNumber String @unique // Número de ticket único
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        PQRSType
+  title       String
+  description String
+  status      PQRSStatus @default(ABIERTO)
+  priority    Priority   @default(NORMAL)
+
+  attachments PQRSAttachment[]
+  updates     PQRSUpdate[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
 
   @@index([ticketNumber])
   @@index([userId])
@@ -208,17 +209,17 @@ model PQRS {
 }
 
 enum PQRSType {
-  PETICION    // Petición
-  QUEJA       // Queja
-  RECLAMO     // Reclamo
-  SUGERENCIA  // Sugerencia
+  PETICION // Petición
+  QUEJA // Queja
+  RECLAMO // Reclamo
+  SUGERENCIA // Sugerencia
 }
 
 enum PQRSStatus {
-  ABIERTO     // Abierto
+  ABIERTO // Abierto
   EN_REVISION // En revisión
-  RESUELTO    // Resuelto
-  CERRADO     // Cerrado
+  RESUELTO // Resuelto
+  CERRADO // Cerrado
 }
 
 enum Priority {
@@ -229,26 +230,26 @@ enum Priority {
 }
 
 model PQRSAttachment {
-  id        String  @id @default(cuid())
-  pqrsId    String
-  pqrs      PQRS    @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
-  
-  fileName  String
-  fileUrl   String
-  
+  id     String @id @default(cuid())
+  pqrsId String
+  pqrs   PQRS   @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+
+  fileName String
+  fileUrl  String
+
   createdAt DateTime @default(now())
 
   @@index([pqrsId])
 }
 
 model PQRSUpdate {
-  id        String  @id @default(cuid())
-  pqrsId    String
-  pqrs      PQRS    @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
-  
-  message   String
-  status    PQRSStatus
-  
+  id     String @id @default(cuid())
+  pqrsId String
+  pqrs   PQRS   @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+
+  message String
+  status  PQRSStatus
+
   createdAt DateTime @default(now())
 
   @@index([pqrsId])
@@ -259,27 +260,27 @@ model PQRSUpdate {
 // ============================================
 
 model Notification {
-  id        String    @id @default(cuid())
-  userId    String
-  
-  type      NotificationType
-  title     String
-  message   String
-  
-  read      Boolean   @default(false)
-  
-  createdAt DateTime  @default(now())
+  id     String @id @default(cuid())
+  userId String
+
+  type    NotificationType
+  title   String
+  message String
+
+  read Boolean @default(false)
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([read])
 }
 
 enum NotificationType {
-  TRANSFER_RECEIVED      // Transferencia recibida
-  PURCHASE_COMPLETED     // Compra completada
-  LOW_BALANCE            // Saldo bajo
-  PQRS_UPDATE            // Actualización PQRS
-  SYSTEM_ALERT           // Alerta del sistema
+  TRANSFER_RECEIVED // Transferencia recibida
+  PURCHASE_COMPLETED // Compra completada
+  LOW_BALANCE // Saldo bajo
+  PQRS_UPDATE // Actualización PQRS
+  SYSTEM_ALERT // Alerta del sistema
 }
 
 // ============================================
@@ -287,20 +288,20 @@ enum NotificationType {
 // ============================================
 
 model AuditLog {
-  id        String    @id @default(cuid())
-  userId    String?   // Puede ser null para acciones del sistema
-  
-  action    String    // Descripción de la acción
-  entity    String    // Entidad afectada (User, Payment, Transfer, etc.)
-  entityId  String    // ID de la entidad
-  
-  oldValue  String?   // JSON del valor anterior
-  newValue  String?   // JSON del valor nuevo
-  
+  id     String  @id @default(cuid())
+  userId String? // Puede ser null para acciones del sistema
+
+  action   String // Descripción de la acción
+  entity   String // Entidad afectada (User, Payment, Transfer, etc.)
+  entityId String // ID de la entidad
+
+  oldValue String? // JSON del valor anterior
+  newValue String? // JSON del valor nuevo
+
   ipAddress String?
   userAgent String?
-  
-  createdAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
 
   @@index([userId])
   @@index([entity])
@@ -312,21 +313,21 @@ model AuditLog {
 // ============================================
 
 model SystemConfig {
-  id                    String  @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Tasas y límites
-  creditPrice           Float   @default(8500) // Precio en dinero de un crédito
-  minTransferAmount     Float   @default(1)
-  maxTransferAmount     Float   @default(100)
-  minPurchaseAmount     Float   @default(1)
-  maxPurchaseAmount     Float   @default(100)
-  lowBalanceThreshold   Float   @default(5) // Notificar cuando saldo sea menor a esto
-  
+  creditPrice         Float @default(8500) // Precio en dinero de un crédito
+  minTransferAmount   Float @default(1)
+  maxTransferAmount   Float @default(100)
+  minPurchaseAmount   Float @default(1)
+  maxPurchaseAmount   Float @default(100)
+  lowBalanceThreshold Float @default(5) // Notificar cuando saldo sea menor a esto
+
   // Configuración de sesión
-  sessionTimeoutMinutes Int     @default(30)
-  
+  sessionTimeoutMinutes Int @default(30)
+
   // Mantenimiento
-  maintenanceMode       Boolean @default(false)
-  
-  updatedAt             DateTime @updatedAt
+  maintenanceMode Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
 }
