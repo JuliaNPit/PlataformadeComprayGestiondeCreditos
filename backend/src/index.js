@@ -2,12 +2,17 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const authRoutes = require('./modules/auth/auth.routes');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares globales
 app.use(cors());
 app.use(express.json());
+
+// Rutas
+app.use('/api/auth', authRoutes);
 
 // Ruta de prueba
 app.get('/', (req, res) => {
