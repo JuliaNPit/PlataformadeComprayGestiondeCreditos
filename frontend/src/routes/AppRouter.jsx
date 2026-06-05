@@ -4,6 +4,9 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Historial from '../pages/Historial';
 import Transferencias from '../pages/Transferencias';
+import Pagos from '../pages/Pagos';
+import PQRS from '../pages/PQRS';
+import Admin from '../pages/Admin';
 
 const PrivateRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
@@ -26,6 +29,9 @@ const AppRouter = () => {
         <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
         <Route path="/historial" element={<PrivateRoute><Historial /></PrivateRoute>} />
         <Route path="/transferencias" element={<PrivateRoute><Transferencias /></PrivateRoute>} />
+        <Route path="/pagos" element={<PrivateRoute><Pagos /></PrivateRoute>} />
+        <Route path="/pqrs" element={<PrivateRoute><PQRS /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
       </Routes>
     </BrowserRouter>
   );
