@@ -64,6 +64,15 @@ const Dashboard = () => {
         {/* Acciones rápidas */}
         <div className="grid grid-cols-2 gap-4">
           <button
+            onClick={() => navigate('/pagos')}
+            className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow text-left"
+          >
+            <div className="text-3xl mb-2">💳</div>
+            <h3 className="font-semibold text-gray-800">Comprar</h3>
+            <p className="text-gray-500 text-sm">Recargar créditos</p>
+          </button>
+
+          <button
             onClick={() => navigate('/transferencias')}
             className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow text-left"
           >
@@ -80,7 +89,28 @@ const Dashboard = () => {
             <h3 className="font-semibold text-gray-800">Historial</h3>
             <p className="text-gray-500 text-sm">Ver mis transacciones</p>
           </button>
+
+          <button
+            onClick={() => navigate('/pqrs')}
+            className="bg-white rounded-xl p-6 shadow hover:shadow-md transition-shadow text-left"
+          >
+            <div className="text-3xl mb-2">🎫</div>
+            <h3 className="font-semibold text-gray-800">Soporte</h3>
+            <p className="text-gray-500 text-sm">Quejas y solicitudes</p>
+          </button>
         </div>
+
+        {/* Panel admin — solo visible para ADMIN */}
+        {user?.role === 'ADMIN' && (
+          <button
+            onClick={() => navigate('/admin')}
+            className="w-full bg-blue-900 text-white rounded-xl p-5 shadow hover:bg-blue-800 transition text-left"
+          >
+            <div className="text-3xl mb-2">⚙️</div>
+            <h3 className="font-semibold">Panel Administrativo</h3>
+            <p className="text-blue-300 text-sm">Métricas, usuarios y transacciones</p>
+          </button>
+        )}
 
         {/* Info del estudiante */}
         <div className="bg-white rounded-xl p-6 shadow">
