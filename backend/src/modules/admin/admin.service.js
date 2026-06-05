@@ -3,65 +3,55 @@ const prisma = new PrismaClient();
 
 const obtenerMetricas = async () => {
   const [totalUsuarios, totalTransacciones, transaccionesHoy, creditosEnCirculacion] = await Promise.all([
-    prisma.usuario.count(),
-    prisma.transaccion.count(),
-    prisma.transaccion.count({
-      where: {
-        creadoEn: {
-          gte: new Date(new Date().setHours(0, 0, 0, 0))
-        }
-      }
+    prisma.user.count(),
+    prisma.payment.count(),
+    prisma.payment.count({
+      where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
     }),
-    prisma.wallet.aggregate({
-      _sum: { saldo: true }
-    })
+    prisma.wallet.aggregate({ _sum: { balance: true } })
   ]);
 
   return {
     totalUsuarios,
     totalTransacciones,
     transaccionesHoy,
-    creditosEnCirculacion: creditosEnCirculacion._sum.saldo || 0
+    creditosEnCirculacion: creditosEnCirculacion._sum.balance || 0
   };
 };
 
 const obtenerUsuarios = async () => {
-  return await prisma.usuario.findMany({
+  return await prisma.user.findMany({
     select: {
       id: true,
-      nombre: true,
+      name: true,
       email: true,
-      codigoEstudiantil: true,
-      rol: true,
-      activo: true,
-      creadoEn: true,
-      wallet: {
-        select: { saldo: true }
-      }
+      code: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      wallet: { select: { balance: true } }
     },
-    orderBy: { creadoEn: 'desc' }
+    orderBy: { createdAt: 'desc' }
   });
 };
 
 const obtenerTransacciones = async () => {
-  return await prisma.transaccion.findMany({
+  return await prisma.payment.findMany({
     include: {
-      usuario: {
-        select: { nombre: true, codigoEstudiantil: true }
-      }
+      user: { select: { name: true, code: true } }
     },
-    orderBy: { creadoEn: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: 100
   });
 };
 
 const toggleUsuario = async (usuarioId) => {
-  const usuario = await prisma.usuario.findUnique({ where: { id: usuarioId } });
+  const usuario = await prisma.user.findUnique({ where: { id: usuarioId } });
   if (!usuario) throw new Error('Usuario no encontrado');
 
-  return await prisma.usuario.update({
+  return await prisma.user.update({
     where: { id: usuarioId },
-    data: { activo: !usuario.activo }
+    data: { isActive: !usuario.isActive }
   });
 };
 
