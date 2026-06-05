@@ -6,7 +6,7 @@ const adminController = require('./admin.controller');
 router.use(authMiddleware);
 
 router.use((req, res, next) => {
-  if (req.usuario.rol !== 'ADMIN') {
+  if (req.user.role !== 'ADMIN') {
     return res.status(403).json({ error: 'Acceso restringido a administradores' });
   }
   next();
