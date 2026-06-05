@@ -16,7 +16,8 @@
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
-    "jsonwebtoken": "^9.0.3"
+    "jsonwebtoken": "^9.0.3",
+    "uuid": "^14.0.0"
   },
   "devDependencies": {
     "@prisma/client": "^6.19.3",
