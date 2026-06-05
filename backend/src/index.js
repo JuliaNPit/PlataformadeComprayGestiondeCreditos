@@ -6,6 +6,7 @@ const authRoutes = require('./modules/auth/auth.routes');
 const walletRoutes = require('./modules/wallet/wallet.routes');
 const transfersRoutes = require('./modules/transfers/transfers.routes');
 const paymentsRoutes = require('./modules/payments/payments.routes');
+const adminRoutes = require('./modules/admin/admin.routes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -17,6 +18,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/transfers', transfersRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
   res.json({
