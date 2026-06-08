@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'https://creditos-uptc-backend.onrender.com',
+  baseURL: 'https://creditos-uptc-backend.onrender.com/api',
 });
 
 // Interceptor: agrega el token JWT automáticamente a cada petición
