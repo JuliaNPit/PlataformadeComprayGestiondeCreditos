@@ -4,7 +4,7 @@ const { enviarEmail, templates } = require('../notifications/emailaws.service');
 const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
 
 const prisma = new PrismaClient();
-const PRECIOS = { 1: 32500, 2: 65000, 3: 97500, 5: 162500, 10: 325000 };
+const PRECIOS = { 1: 3900, 2: 7800, 3: 11700, 5: 19500, 10: 39000, 20: 78000 };
 
 const obtenerOpciones = () => {
   return Object.entries(PRECIOS).map(([creditos, precio]) => ({
