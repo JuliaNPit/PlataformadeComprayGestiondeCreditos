@@ -65,7 +65,23 @@ const templates = {
       <p>Tu ticket <strong>${ticketNumber}</strong> ("${titulo}") ha cambiado al estado: <strong>${nuevoEstado}</strong>.</p>
       <p><strong>Respuesta de soporte:</strong> ${mensaje}</p>
     `
-  })
+  }),
+
+  ticketCreado: ({ nombre, ticketNumber, titulo }) => ({
+    subject: `🎫 Ticket Recibido: ${ticketNumber} — UPTC`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Soporte UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Hemos recibido tu solicitud <strong>${ticketNumber}</strong> ("${titulo}").</p>
+          <p style="color:#555;">Nuestro equipo lo revisará y te notificaremos cuando haya una respuesta.</p>
+        </div>
+      </div>
+    `
+  }),
 };
 
 module.exports = { enviarEmail, templates };

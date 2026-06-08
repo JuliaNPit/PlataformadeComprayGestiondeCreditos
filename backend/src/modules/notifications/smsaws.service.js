@@ -28,6 +28,8 @@ const enviarSMS = async ({ telefono, mensaje }) => {
 const templatesSMS = {
   compraExitosa: (creditos, saldo) => `UPTC: Compraste ${creditos} creditos. Saldo actual: ${saldo}.`,
   transferenciaRecibida: (cantidad, remitente) => `UPTC: Recibiste ${cantidad} creditos de ${remitente}.`,
+  ticketCreado: (ticket) => `UPTC Soporte: Tu ticket ${ticket} fue recibido con exito.`,
+  ticketActualizado: (ticket, estado) => `UPTC Soporte: Tu ticket ${ticket} paso a estado: ${estado}.`
 };
 
 module.exports = { enviarSMS, templatesSMS };

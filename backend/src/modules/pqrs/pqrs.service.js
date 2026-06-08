@@ -15,10 +15,34 @@ const crearTicket = async (userId, { type, title, description }) => {
   const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
   if (!tiposValidos.includes(type)) throw new Error('Tipo no válido');
   if (!title || !description) throw new Error('El título y la descripción son obligatorios');
+  
   const ticketNumber = generarNumeroTicket();
-  return await prisma.pQRS.create({
+
+  // 1. Obtener usuario para notificarle
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  // 2. Crear ticket en BD
+  const ticket = await prisma.pQRS.create({
     data: { ticketNumber, type, title, description, status: 'ABIERTO', userId }
   });
+
+  // 3. Enviar Email
+  if (user?.email) {
+    const { subject, html } = templates.ticketCreado({
+      nombre: user.name,
+      ticketNumber,
+      titulo: title
+    });
+    enviarEmail({ to: user.email, subject, html }).catch(err => console.error('Error email PQRS:', err));
+  }
+
+  // 4. Enviar SMS
+  if (user?.phone) {
+    const mensajeSMS = templatesSMS.ticketCreado(ticketNumber);
+    enviarSMS({ telefono: user.phone, mensaje: mensajeSMS }).catch(err => console.error('Error SMS PQRS:', err));
+  }
+
+  return ticket;
 };
 
 const obtenerMisTickets = async (userId) => {
