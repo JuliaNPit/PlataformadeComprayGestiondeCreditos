@@ -57,6 +57,15 @@ const templates = {
     subject: '↙️ Recibiste créditos — UPTC',
     html: `<p>Hola <strong>${nombre}</strong>, recibiste ${cantidad} crédito(s) de ${remitente}. Tu nuevo saldo es ${nuevoSaldo}.</p>`,
   }),
+
+  ticketActualizado: ({ nombre, ticketNumber, titulo, nuevoEstado, mensaje }) => ({
+    subject: `📋 Tu ticket ${ticketNumber} fue actualizado — UPTC`,
+    html: `
+      <p>Hola <strong>${nombre}</strong>,</p>
+      <p>Tu ticket <strong>${ticketNumber}</strong> ("${titulo}") ha cambiado al estado: <strong>${nuevoEstado}</strong>.</p>
+      <p><strong>Respuesta de soporte:</strong> ${mensaje}</p>
+    `
+  })
 };
 
 module.exports = { enviarEmail, templates };
