@@ -11,15 +11,9 @@ const generarNumeroTicket = () => {
 
 const crearTicket = async (userId, { type, title, description }) => {
   const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
-  if (!tiposValidos.includes(type)) {
-    throw new Error('Tipo no válido. Use: PETICION, QUEJA, RECLAMO o SUGERENCIA');
-  }
-  if (!title || !description) {
-    throw new Error('El título y la descripción son obligatorios');
-  }
-
+  if (!tiposValidos.includes(type)) throw new Error('Tipo no válido. Use: PETICION, QUEJA, RECLAMO o SUGERENCIA');
+  if (!title || !description) throw new Error('El título y la descripción son obligatorios');
   const ticketNumber = generarNumeroTicket();
-
   return await prisma.pQRS.create({
     data: { ticketNumber, type, title, description, status: 'ABIERTO', userId }
   });
@@ -28,15 +22,53 @@ const crearTicket = async (userId, { type, title, description }) => {
 const obtenerMisTickets = async (userId) => {
   return await prisma.pQRS.findMany({
     where: { userId },
-    orderBy: { createdAt: 'desc' }
+    orderBy: { createdAt: 'desc' },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
   });
 };
 
 const obtenerTicketPorId = async (userId, ticketId) => {
-  const ticket = await prisma.pQRS.findUnique({ where: { id: ticketId } });
+  const ticket = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
+  });
   if (!ticket) throw new Error('Ticket no encontrado');
   if (ticket.userId !== userId) throw new Error('No tienes permiso para ver este ticket');
   return ticket;
 };
 
-module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId };
+// --- Admin ---
+const obtenerTodosLosTickets = async () => {
+  return await prisma.pQRS.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: { select: { name: true, code: true } },
+      updates: { orderBy: { createdAt: 'asc' } }
+    }
+  });
+};
+
+const responderTicket = async (ticketId, { message, status }) => {
+  const estadosValidos = ['ABIERTO', 'EN_REVISION', 'RESUELTO', 'CERRADO'];
+  if (!estadosValidos.includes(status)) throw new Error('Estado no válido');
+  if (!message) throw new Error('El mensaje es obligatorio');
+
+  // Crear el update y actualizar el estado del ticket en una transacción
+  const [update, ticket] = await prisma.$transaction([
+    prisma.pQRSUpdate.create({
+      data: { pqrsId: ticketId, message, status }
+    }),
+    prisma.pQRS.update({
+      where: { id: ticketId },
+      data: {
+        status,
+        resolvedAt: status === 'RESUELTO' || status === 'CERRADO' ? new Date() : null
+      },
+      include: { updates: { orderBy: { createdAt: 'asc' } } }
+    })
+  ]);
+
+  return ticket;
+};
+
+module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId, obtenerTodosLosTickets, responderTicket };

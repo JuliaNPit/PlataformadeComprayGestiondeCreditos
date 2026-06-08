@@ -28,4 +28,26 @@ const obtenerTicketPorId = async (req, res) => {
   }
 };
 
-module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId };
+// Admin
+const obtenerTodosLosTickets = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Acceso denegado' });
+    const tickets = await pqrsService.obtenerTodosLosTickets();
+    res.json({ tickets });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const responderTicket = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Acceso denegado' });
+    const { message, status } = req.body;
+    const ticket = await pqrsService.responderTicket(req.params.id, { message, status });
+    res.json({ mensaje: 'Ticket actualizado', ticket });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId, obtenerTodosLosTickets, responderTicket };

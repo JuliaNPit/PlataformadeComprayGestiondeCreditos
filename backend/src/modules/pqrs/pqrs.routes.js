@@ -7,6 +7,10 @@ router.use(authMiddleware);
 
 router.post('/', pqrsController.crearTicket);
 router.get('/', pqrsController.obtenerMisTickets);
+
+router.get('/admin/todos', pqrsController.obtenerTodosLosTickets);
+router.patch('/:id/responder', pqrsController.responderTicket);
+
 router.get('/:id', pqrsController.obtenerTicketPorId);
 
 module.exports = router;
