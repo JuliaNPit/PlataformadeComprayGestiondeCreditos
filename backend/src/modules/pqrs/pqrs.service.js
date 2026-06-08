@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const { enviarEmail, templates } = require('../notifications/email.service');
 const prisma = new PrismaClient();
 
 const generarNumeroTicket = () => {
@@ -11,7 +12,7 @@ const generarNumeroTicket = () => {
 
 const crearTicket = async (userId, { type, title, description }) => {
   const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
-  if (!tiposValidos.includes(type)) throw new Error('Tipo no válido. Use: PETICION, QUEJA, RECLAMO o SUGERENCIA');
+  if (!tiposValidos.includes(type)) throw new Error('Tipo no válido');
   if (!title || !description) throw new Error('El título y la descripción son obligatorios');
   const ticketNumber = generarNumeroTicket();
   return await prisma.pQRS.create({
@@ -37,12 +38,11 @@ const obtenerTicketPorId = async (userId, ticketId) => {
   return ticket;
 };
 
-// --- Admin ---
 const obtenerTodosLosTickets = async () => {
   return await prisma.pQRS.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      user: { select: { name: true, code: true } },
+      user: { select: { name: true, code: true, email: true } },
       updates: { orderBy: { createdAt: 'asc' } }
     }
   });
@@ -53,8 +53,13 @@ const responderTicket = async (ticketId, { message, status }) => {
   if (!estadosValidos.includes(status)) throw new Error('Estado no válido');
   if (!message) throw new Error('El mensaje es obligatorio');
 
-  // Crear el update y actualizar el estado del ticket en una transacción
-  const [update, ticket] = await prisma.$transaction([
+  const ticketActual = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { user: true }
+  });
+  if (!ticketActual) throw new Error('Ticket no encontrado');
+
+  const [, ticket] = await prisma.$transaction([
     prisma.pQRSUpdate.create({
       data: { pqrsId: ticketId, message, status }
     }),
@@ -67,6 +72,18 @@ const responderTicket = async (ticketId, { message, status }) => {
       include: { updates: { orderBy: { createdAt: 'asc' } } }
     })
   ]);
+
+  // Email al estudiante
+  if (ticketActual.user?.email) {
+    const { subject, html } = templates.ticketActualizado({
+      nombre: ticketActual.user.name,
+      ticketNumber: ticketActual.ticketNumber,
+      titulo: ticketActual.title,
+      nuevoEstado: status,
+      mensaje: message
+    });
+    await enviarEmail({ to: ticketActual.user.email, subject, html });
+  }
 
   return ticket;
 };
