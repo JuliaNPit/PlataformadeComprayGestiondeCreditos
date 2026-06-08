@@ -8,9 +8,13 @@ export default {
     extend: {
       colors: {
         uptc: {
-          blue: '#1F4E79',
-          yellow: '#FFC300',
-          light: '#2E75B6',
+          amarillo: '#C8A400',
+          'amarillo-claro': '#F5D700',
+          'amarillo-hover': '#A88A00',
+          negro: '#1A1A1A',
+          'gris-oscuro': '#2C2C2C',
+          'gris-medio': '#5C5C5C',
+          'gris-claro': '#F5F4EF',
         }
       }
     },
