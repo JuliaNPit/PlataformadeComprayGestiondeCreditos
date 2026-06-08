@@ -82,7 +82,7 @@ const responderTicket = async (ticketId, { message, status }) => {
       nuevoEstado: status,
       mensaje: message
     });
-    await enviarEmail({ to: ticketActual.user.email, subject, html });
+    enviarEmail({ to: ticketActual.user.email, subject, html });
   }
 
   return ticket;

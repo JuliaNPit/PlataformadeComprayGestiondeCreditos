@@ -47,7 +47,7 @@ const transferir = async (senderUserId, { destinatarioCode, cantidad }) => {
       cantidad,
       nuevoSaldo: senderSaldoNuevo
     });
-    await enviarEmail({ to: sender.email, subject, html }).catch(() => {});
+    enviarEmail({ to: sender.email, subject, html }).catch(() => {});
   }
 
   // Email al destinatario
@@ -58,7 +58,7 @@ const transferir = async (senderUserId, { destinatarioCode, cantidad }) => {
       cantidad,
       nuevoSaldo: destinatarioSaldoNuevo
     });
-    await enviarEmail({ to: destinatario.email, subject, html }).catch(() => {});
+    enviarEmail({ to: destinatario.email, subject, html }).catch(() => {});
   }
 
   return {
