@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
-const { enviarEmail, templates } = require('../notifications/email.service');
+const { enviarEmail, templates } = require('../notifications/emailaws.service');
+const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
 const prisma = new PrismaClient();
 
 const transferir = async (senderUserId, { destinatarioCode, cantidad }) => {
@@ -35,30 +36,33 @@ const transferir = async (senderUserId, { destinatarioCode, cantidad }) => {
     return transfer;
   });
 
-  // Saldos actualizados
   const senderSaldoNuevo = senderWallet.balance - cantidad;
   const destinatarioSaldoNuevo = destinatario.wallet.balance + cantidad;
 
-  // Email al remitente
+  // ==========================================
+  // NOTIFICACIONES AL REMITENTE (QUIEN ENVÍA)
+  // ==========================================
   if (sender?.email) {
     const { subject, html } = templates.transferenciaEnviada({
-      nombre: sender.name,
-      destinatario: destinatario.name,
-      cantidad,
-      nuevoSaldo: senderSaldoNuevo
+      nombre: sender.name, destinatario: destinatario.name, cantidad, nuevoSaldo: senderSaldoNuevo
     });
     enviarEmail({ to: sender.email, subject, html }).catch(() => {});
   }
+  // Notificación SMS no incluida para quien envía en las templates, pero si quieres puedes agregarla después.
 
-  // Email al destinatario
+  // ==========================================
+  // NOTIFICACIONES AL DESTINATARIO (QUIEN RECIBE)
+  // ==========================================
   if (destinatario?.email) {
     const { subject, html } = templates.transferenciaRecibida({
-      nombre: destinatario.name,
-      remitente: sender.name,
-      cantidad,
-      nuevoSaldo: destinatarioSaldoNuevo
+      nombre: destinatario.name, remitente: sender.name, cantidad, nuevoSaldo: destinatarioSaldoNuevo
     });
     enviarEmail({ to: destinatario.email, subject, html }).catch(() => {});
+  }
+  
+  if (destinatario?.phone) {
+    const mensajeSMS = templatesSMS.transferenciaRecibida(cantidad, sender.name);
+    enviarSMS({ telefono: destinatario.phone, mensaje: mensajeSMS }).catch(() => {});
   }
 
   return {

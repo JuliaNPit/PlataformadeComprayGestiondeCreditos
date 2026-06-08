@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
-const { enviarEmail, templates } = require('../notifications/email.service');
+const { enviarEmail, templates } = require('../notifications/emailaws.service'); // <-- AWS SES
+const { enviarSMS } = require('../notifications/smsaws.service');               // <-- AWS SNS
 const prisma = new PrismaClient();
 
 const generarNumeroTicket = () => {
@@ -42,7 +43,7 @@ const obtenerTodosLosTickets = async () => {
   return await prisma.pQRS.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      user: { select: { name: true, code: true, email: true } },
+      user: { select: { name: true, code: true, email: true, phone: true } }, // <-- Aseguramos traer el teléfono
       updates: { orderBy: { createdAt: 'asc' } }
     }
   });
@@ -73,7 +74,7 @@ const responderTicket = async (ticketId, { message, status }) => {
     })
   ]);
 
-  // Email al estudiante
+  // 📧 Email al estudiante (AWS SES)
   if (ticketActual.user?.email) {
     const { subject, html } = templates.ticketActualizado({
       nombre: ticketActual.user.name,
@@ -82,7 +83,13 @@ const responderTicket = async (ticketId, { message, status }) => {
       nuevoEstado: status,
       mensaje: message
     });
-    enviarEmail({ to: ticketActual.user.email, subject, html });
+    enviarEmail({ to: ticketActual.user.email, subject, html }).catch(() => {});
+  }
+
+  // 📱 SMS al estudiante (AWS SNS)
+  if (ticketActual.user?.phone) {
+    const mensajeSMS = `UPTC Soporte: Tu ticket ${ticketActual.ticketNumber} ha sido actualizado a estado: ${status}.`;
+    enviarSMS({ telefono: ticketActual.user.phone, mensaje: mensajeSMS }).catch(() => {});
   }
 
   return ticket;

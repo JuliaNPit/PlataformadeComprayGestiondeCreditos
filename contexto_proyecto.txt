@@ -1,0 +1,4496 @@
+🌳 Estructura del Proyecto (solo Core):
+.
+|____.gitignore
+|____backend
+| |____.env
+| |____.env.example
+| |____package-lock.json
+| |____package.json
+| |____prisma
+| | |____migrations
+| | | |____20260603195946_init
+| | | | |____migration.sql
+| | | |____20260608205102_add_user_phone
+| | | | |____migration.sql
+| | | |____migration_lock.toml
+| | |____schema.prisma
+| |____src
+| | |____adapters
+| | | |____paymentGateway.adapter.js
+| | | |____sira.adapter.js
+| | |____config
+| | |____index.js
+| | |____middlewares
+| | | |____auth.middleware.js
+| | |____modules
+| | | |____admin
+| | | | |____admin.controller.js
+| | | | |____admin.routes.js
+| | | | |____admin.service.js
+| | | |____auth
+| | | | |____auth.controller.js
+| | | | |____auth.routes.js
+| | | | |____auth.service.js
+| | | |____notifications
+| | | | |____email.service.js
+| | | | |____emailaws.service.js
+| | | | |____notifications.controller.js
+| | | | |____notifications.routes.js
+| | | | |____notifications.service.js
+| | | | |____smsaws.service.js
+| | | |____payments
+| | | | |____payments.controller.js
+| | | | |____payments.routes.js
+| | | | |____payments.service.js
+| | | |____pqrs
+| | | | |____pqrs.controller.js
+| | | | |____pqrs.routes.js
+| | | | |____pqrs.service.js
+| | | |____transfers
+| | | | |____transfers.controller.js
+| | | | |____transfers.routes.js
+| | | | |____transfers.service.js
+| | | |____wallet
+| | | | |____wallet.controller.js
+| | | | |____wallet.routes.js
+| | | | |____wallet.service.js
+| | |____shared
+| |____test_aws.js
+|____conectar_emails.sh
+|____contexto.sh
+|____contexto_proyecto.txt
+|____docker-compose.yml
+|____docs
+| |____diagramas
+|____email.service.js
+|____fix_email_async.sh
+|____fix_pages.sh
+|____frontend
+| |____.env.example
+| |____.vite
+| |____index.html
+| |____package-lock.json
+| |____package.json
+| |____postcss.config.js
+| |____public
+| | |____manifest.json
+| |____src
+| | |____App.jsx
+| | |____components
+| | |____context
+| | | |____AuthContext.jsx
+| | |____index.css
+| | |____main.jsx
+| | |____pages
+| | | |____Admin.jsx
+| | | |____AdminLayout.jsx
+| | | |____Dashboard.jsx
+| | | |____Historial.jsx
+| | | |____Login.jsx
+| | | |____Pagos.jsx
+| | | |____PQRS.jsx
+| | | |____StudentLayout.jsx
+| | | |____Transferencias.jsx
+| | |____routes
+| | | |____AppRouter.jsx
+| | |____services
+| | | |____api.js
+| |____tailwind.config.js
+| |____vercel.json
+| |____vite.config.js
+|____README.md
+
+
+---
+
+📄 Contenido de los Archivos:
+
+--- INICIO: ./.gitignore ---
+# Dependencias
+node_modules/
+.env
+.env.local
+dist/
+build/
+.DS_Store
+.vscode/
+*.log
+node_modules/
+.env
+.env.local
+dist/
+build/
+.DS_Store
+.vscode/
+*.log
+
+--- FIN: ./.gitignore ---
+
+--- INICIO: ./backend/.env.example ---
+DATABASE_URL="postgresql://usuario:password@host:5432/creditos_uptc"
+JWT_SECRET="uptc_creditos_secret_2026"
+JWT_EXPIRES_IN="30m"
+PORT=3000
+NODE_ENV=production
+SIRA_ENABLED=true
+FRONTEND_URL="https://tu-app.vercel.app"
+--- FIN: ./backend/.env.example ---
+
+--- INICIO: ./backend/package.json ---
+{
+  "name": "uptc-backend",
+  "version": "1.0.0",
+  "description": "Backend para plataforma de créditos académicos",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.1064.0",
+    "@aws-sdk/client-sns": "^3.1064.0",
+    "@prisma/client": "6.19.3",
+    "bcrypt": "^5.1.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.2",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.10",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prisma": "6.19.3"
+  }
+}
+
+--- FIN: ./backend/package.json ---
+
+--- INICIO: ./backend/prisma/migrations/20260603195946_init/migration.sql ---
+-- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('STUDENT', 'ADMIN', 'OPERATOR');
+
+-- CreateEnum
+CREATE TYPE "TransactionType" AS ENUM ('PURCHASE', 'TRANSFER_SENT', 'TRANSFER_RECEIVED', 'CONSUMPTION');
+
+-- CreateEnum
+CREATE TYPE "TransactionStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'REVERSED');
+
+-- CreateEnum
+CREATE TYPE "PaymentMethod" AS ENUM ('PSE', 'NEQUI', 'TARJETA');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "TransferStatus" AS ENUM ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "PQRSType" AS ENUM ('PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA');
+
+-- CreateEnum
+CREATE TYPE "PQRSStatus" AS ENUM ('ABIERTO', 'EN_REVISION', 'RESUELTO', 'CERRADO');
+
+-- CreateEnum
+CREATE TYPE "Priority" AS ENUM ('BAJA', 'NORMAL', 'ALTA', 'URGENTE');
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('TRANSFER_RECEIVED', 'PURCHASE_COMPLETED', 'LOW_BALANCE', 'PQRS_UPDATE', 'SYSTEM_ALERT');
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "program" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "role" "UserRole" NOT NULL DEFAULT 'STUDENT',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Wallet" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "balance" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "totalSpent" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Wallet_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Transaction" (
+    "id" TEXT NOT NULL,
+    "walletId" TEXT NOT NULL,
+    "type" "TransactionType" NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "description" TEXT NOT NULL,
+    "transferId" TEXT,
+    "paymentId" TEXT,
+    "status" "TransactionStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Transaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "credits" DOUBLE PRECISION NOT NULL,
+    "method" "PaymentMethod" NOT NULL,
+    "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
+    "gatewayTransactionId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Transfer" (
+    "id" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "receiverId" TEXT NOT NULL,
+    "amount" DOUBLE PRECISION NOT NULL,
+    "status" "TransferStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Transfer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PQRS" (
+    "id" TEXT NOT NULL,
+    "ticketNumber" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "PQRSType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT NOT NULL,
+    "status" "PQRSStatus" NOT NULL DEFAULT 'ABIERTO',
+    "priority" "Priority" NOT NULL DEFAULT 'NORMAL',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "PQRS_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PQRSAttachment" (
+    "id" TEXT NOT NULL,
+    "pqrsId" TEXT NOT NULL,
+    "fileName" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PQRSAttachment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PQRSUpdate" (
+    "id" TEXT NOT NULL,
+    "pqrsId" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "status" "PQRSStatus" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PQRSUpdate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Notification" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "NotificationType" NOT NULL,
+    "title" TEXT NOT NULL,
+    "message" TEXT NOT NULL,
+    "read" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AuditLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT,
+    "action" TEXT NOT NULL,
+    "entity" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "oldValue" TEXT,
+    "newValue" TEXT,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SystemConfig" (
+    "id" TEXT NOT NULL,
+    "creditPrice" DOUBLE PRECISION NOT NULL DEFAULT 8500,
+    "minTransferAmount" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "maxTransferAmount" DOUBLE PRECISION NOT NULL DEFAULT 100,
+    "minPurchaseAmount" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "maxPurchaseAmount" DOUBLE PRECISION NOT NULL DEFAULT 100,
+    "lowBalanceThreshold" DOUBLE PRECISION NOT NULL DEFAULT 5,
+    "sessionTimeoutMinutes" INTEGER NOT NULL DEFAULT 30,
+    "maintenanceMode" BOOLEAN NOT NULL DEFAULT false,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SystemConfig_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_code_key" ON "User"("code");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE INDEX "User_code_idx" ON "User"("code");
+
+-- CreateIndex
+CREATE INDEX "User_email_idx" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Wallet_userId_key" ON "Wallet"("userId");
+
+-- CreateIndex
+CREATE INDEX "Wallet_userId_idx" ON "Wallet"("userId");
+
+-- CreateIndex
+CREATE INDEX "Transaction_walletId_idx" ON "Transaction"("walletId");
+
+-- CreateIndex
+CREATE INDEX "Transaction_type_idx" ON "Transaction"("type");
+
+-- CreateIndex
+CREATE INDEX "Transaction_status_idx" ON "Transaction"("status");
+
+-- CreateIndex
+CREATE INDEX "Transaction_createdAt_idx" ON "Transaction"("createdAt");
+
+-- CreateIndex
+CREATE INDEX "Payment_userId_idx" ON "Payment"("userId");
+
+-- CreateIndex
+CREATE INDEX "Payment_status_idx" ON "Payment"("status");
+
+-- CreateIndex
+CREATE INDEX "Transfer_senderId_idx" ON "Transfer"("senderId");
+
+-- CreateIndex
+CREATE INDEX "Transfer_receiverId_idx" ON "Transfer"("receiverId");
+
+-- CreateIndex
+CREATE INDEX "Transfer_status_idx" ON "Transfer"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PQRS_ticketNumber_key" ON "PQRS"("ticketNumber");
+
+-- CreateIndex
+CREATE INDEX "PQRS_ticketNumber_idx" ON "PQRS"("ticketNumber");
+
+-- CreateIndex
+CREATE INDEX "PQRS_userId_idx" ON "PQRS"("userId");
+
+-- CreateIndex
+CREATE INDEX "PQRS_status_idx" ON "PQRS"("status");
+
+-- CreateIndex
+CREATE INDEX "PQRSAttachment_pqrsId_idx" ON "PQRSAttachment"("pqrsId");
+
+-- CreateIndex
+CREATE INDEX "PQRSUpdate_pqrsId_idx" ON "PQRSUpdate"("pqrsId");
+
+-- CreateIndex
+CREATE INDEX "Notification_userId_idx" ON "Notification"("userId");
+
+-- CreateIndex
+CREATE INDEX "Notification_read_idx" ON "Notification"("read");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_userId_idx" ON "AuditLog"("userId");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_entity_idx" ON "AuditLog"("entity");
+
+-- CreateIndex
+CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
+
+-- AddForeignKey
+ALTER TABLE "Wallet" ADD CONSTRAINT "Wallet_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_walletId_fkey" FOREIGN KEY ("walletId") REFERENCES "Wallet"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_transferId_fkey" FOREIGN KEY ("transferId") REFERENCES "Transfer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Transaction" ADD CONSTRAINT "Transaction_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Payment" ADD CONSTRAINT "Payment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Transfer" ADD CONSTRAINT "Transfer_receiverId_fkey" FOREIGN KEY ("receiverId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PQRS" ADD CONSTRAINT "PQRS_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PQRSAttachment" ADD CONSTRAINT "PQRSAttachment_pqrsId_fkey" FOREIGN KEY ("pqrsId") REFERENCES "PQRS"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PQRSUpdate" ADD CONSTRAINT "PQRSUpdate_pqrsId_fkey" FOREIGN KEY ("pqrsId") REFERENCES "PQRS"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+--- FIN: ./backend/prisma/migrations/20260603195946_init/migration.sql ---
+
+--- INICIO: ./backend/prisma/migrations/20260608205102_add_user_phone/migration.sql ---
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "phone" TEXT;
+
+--- FIN: ./backend/prisma/migrations/20260608205102_add_user_phone/migration.sql ---
+
+--- INICIO: ./backend/prisma/migrations/migration_lock.toml ---
+# Please do not edit this file manually
+# It should be added in your version-control system (e.g., Git)
+provider = "postgresql"
+
+--- FIN: ./backend/prisma/migrations/migration_lock.toml ---
+
+--- INICIO: ./backend/prisma/schema.prisma ---
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USUARIOS Y AUTENTICACIÓN
+// ============================================
+
+model User {
+  id       String   @id @default(cuid())
+  code     String   @unique // Código estudiantil
+  email    String   @unique
+  phone    String?
+  name     String
+  password String // Hash bcrypt
+  program  String // Programa académico (ej: Ingeniería de Sistemas)
+  isActive Boolean  @default(true)
+  role     UserRole @default(STUDENT)
+
+  // Relaciones
+  wallet            Wallet?
+  sentTransfers     Transfer[] @relation("sender")
+  receivedTransfers Transfer[] @relation("receiver")
+  pqrsCreated       PQRS[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  payments          Payment[]
+
+  @@index([code])
+  @@index([email])
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+  OPERATOR
+}
+
+// ============================================
+// BILLETERA Y SALDO
+// ============================================
+
+model Wallet {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  balance    Float @default(0) // Saldo en créditos
+  totalSpent Float @default(0) // Total gastado histórico
+
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+// ============================================
+// TRANSACCIONES (Compra, Transferencia, Consumo)
+// ============================================
+
+model Transaction {
+  id       String @id @default(cuid())
+  walletId String
+  wallet   Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  type        TransactionType // PURCHASE, TRANSFER_SENT, TRANSFER_RECEIVED, CONSUMPTION
+  amount      Float // Cantidad de créditos o valor en dinero
+  description String // Descripción legible (ej: "Compra de 5 créditos", "Transferencia de Juan")
+
+  // Para transferencias
+  transferId String?
+  transfer   Transfer? @relation(fields: [transferId], references: [id])
+
+  // Para compras
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+
+  status TransactionStatus @default(PENDING) // PENDING, COMPLETED, FAILED, REVERSED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([walletId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum TransactionType {
+  PURCHASE // Compra de créditos
+  TRANSFER_SENT // Transferencia enviada
+  TRANSFER_RECEIVED // Transferencia recibida
+  CONSUMPTION // Consumo en restaurante
+}
+
+enum TransactionStatus {
+  PENDING // En proceso
+  COMPLETED // Completado
+  FAILED // Falló
+  REVERSED // Revertido
+}
+
+// ============================================
+// PAGOS Y COMPRA DE CRÉDITOS
+// ============================================
+
+model Payment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  amount  Float // Monto pagado en dinero
+  credits Float // Cantidad de créditos comprados
+  method  PaymentMethod // PSE, NEQUI, TARJETA
+
+  status               PaymentStatus @default(PENDING)
+  gatewayTransactionId String? // ID devuelto por la pasarela
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum PaymentMethod {
+  PSE
+  NEQUI
+  TARJETA
+}
+
+enum PaymentStatus {
+  PENDING // Esperando confirmación de pasarela
+  APPROVED // Aprobado
+  REJECTED // Rechazado
+  CANCELLED // Cancelado
+}
+
+// ============================================
+// TRANSFERENCIAS ENTRE ESTUDIANTES
+// ============================================
+
+model Transfer {
+  id String @id @default(cuid())
+
+  senderId String
+  sender   User   @relation("sender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  receiverId String
+  receiver   User   @relation("receiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  amount Float // Cantidad de créditos transferidos
+  status TransferStatus @default(PENDING)
+
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([status])
+}
+
+enum TransferStatus {
+  PENDING // En proceso
+  COMPLETED // Completada
+  FAILED // Falló
+  CANCELLED // Cancelada
+}
+
+// ============================================
+// PQRS (PETICIONES, QUEJAS, RECLAMOS, SUGERENCIAS)
+// ============================================
+
+model PQRS {
+  id           String @id @default(cuid())
+  ticketNumber String @unique // Número de ticket único
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type        PQRSType
+  title       String
+  description String
+  status      PQRSStatus @default(ABIERTO)
+  priority    Priority   @default(NORMAL)
+
+  attachments PQRSAttachment[]
+  updates     PQRSUpdate[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  resolvedAt DateTime?
+
+  @@index([ticketNumber])
+  @@index([userId])
+  @@index([status])
+}
+
+enum PQRSType {
+  PETICION // Petición
+  QUEJA // Queja
+  RECLAMO // Reclamo
+  SUGERENCIA // Sugerencia
+}
+
+enum PQRSStatus {
+  ABIERTO // Abierto
+  EN_REVISION // En revisión
+  RESUELTO // Resuelto
+  CERRADO // Cerrado
+}
+
+enum Priority {
+  BAJA
+  NORMAL
+  ALTA
+  URGENTE
+}
+
+model PQRSAttachment {
+  id     String @id @default(cuid())
+  pqrsId String
+  pqrs   PQRS   @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+
+  fileName String
+  fileUrl  String
+
+  createdAt DateTime @default(now())
+
+  @@index([pqrsId])
+}
+
+model PQRSUpdate {
+  id     String @id @default(cuid())
+  pqrsId String
+  pqrs   PQRS   @relation(fields: [pqrsId], references: [id], onDelete: Cascade)
+
+  message String
+  status  PQRSStatus
+
+  createdAt DateTime @default(now())
+
+  @@index([pqrsId])
+}
+
+// ============================================
+// NOTIFICACIONES
+// ============================================
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+
+  type    NotificationType
+  title   String
+  message String
+
+  read Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([read])
+}
+
+enum NotificationType {
+  TRANSFER_RECEIVED // Transferencia recibida
+  PURCHASE_COMPLETED // Compra completada
+  LOW_BALANCE // Saldo bajo
+  PQRS_UPDATE // Actualización PQRS
+  SYSTEM_ALERT // Alerta del sistema
+}
+
+// ============================================
+// AUDITORÍA Y LOGS
+// ============================================
+
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String? // Puede ser null para acciones del sistema
+
+  action   String // Descripción de la acción
+  entity   String // Entidad afectada (User, Payment, Transfer, etc.)
+  entityId String // ID de la entidad
+
+  oldValue String? // JSON del valor anterior
+  newValue String? // JSON del valor nuevo
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+}
+
+// ============================================
+// CONFIGURACIÓN DEL SISTEMA
+// ============================================
+
+model SystemConfig {
+  id String @id @default(cuid())
+
+  // Tasas y límites
+  creditPrice         Float @default(8500) // Precio en dinero de un crédito
+  minTransferAmount   Float @default(1)
+  maxTransferAmount   Float @default(100)
+  minPurchaseAmount   Float @default(1)
+  maxPurchaseAmount   Float @default(100)
+  lowBalanceThreshold Float @default(5) // Notificar cuando saldo sea menor a esto
+
+  // Configuración de sesión
+  sessionTimeoutMinutes Int @default(30)
+
+  // Mantenimiento
+  maintenanceMode Boolean @default(false)
+
+  updatedAt DateTime @updatedAt
+}
+
+--- FIN: ./backend/prisma/schema.prisma ---
+
+--- INICIO: ./backend/src/adapters/paymentGateway.adapter.js ---
+const simularPago = async ({ monto, metodo, transaccionId }) => {
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  if (monto <= 0) {
+    return {
+      aprobado: false,
+      codigoRespuesta: 'FONDOS_INSUFICIENTES',
+      mensaje: 'Transacción rechazada por la entidad bancaria',
+      transaccionId
+    };
+  }
+
+  return {
+    aprobado: true,
+    codigoRespuesta: 'APROBADO',
+    mensaje: 'Pago procesado exitosamente',
+    transaccionId,
+    metodo,
+    monto
+  };
+};
+
+module.exports = { simularPago };
+--- FIN: ./backend/src/adapters/paymentGateway.adapter.js ---
+
+--- INICIO: ./backend/src/adapters/sira.adapter.js ---
+// Simulación del Sistema de Información de Registro Académico (SIRA)
+// En producción, este módulo haría una llamada HTTP al sistema institucional real.
+
+const estudiantesActivos = [
+  { code: '202012345', nombre: 'Juan Esteban León Cárdenas', programa: 'Ingeniería de Sistemas', activo: true },
+  { code: '202054321', nombre: 'Julian Leonardo Arias Pita', programa: 'Ingeniería de Sistemas', activo: true },
+  { code: '202011111', nombre: 'María García López', programa: 'Ingeniería Industrial', activo: true },
+  { code: '202022222', nombre: 'Carlos Pérez Mora', programa: 'Ingeniería de Sistemas', activo: true },
+  { code: '202033333', nombre: 'Ana Rodríguez Silva', programa: 'Administración de Empresas', activo: true },
+  { code: '202044444', nombre: 'Luis Martínez Torres', programa: 'Ingeniería de Sistemas', activo: false },
+];
+
+const verificarEstudiante = async (code) => {
+  // Simula una pequeña demora como tendría una llamada real
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const estudiante = estudiantesActivos.find(e => e.code === code);
+
+  if (!estudiante) {
+    return { activo: false, mensaje: 'Código no encontrado en el SIRA' };
+  }
+
+  return {
+    activo: estudiante.activo,
+    nombre: estudiante.nombre,
+    programa: estudiante.programa,
+    mensaje: estudiante.activo ? 'Estudiante activo' : 'Estudiante inactivo'
+  };
+};
+
+module.exports = { verificarEstudiante };
+--- FIN: ./backend/src/adapters/sira.adapter.js ---
+
+--- INICIO: ./backend/src/index.js ---
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
+
+const authRoutes = require('./modules/auth/auth.routes');
+const walletRoutes = require('./modules/wallet/wallet.routes');
+const transfersRoutes = require('./modules/transfers/transfers.routes');
+const paymentsRoutes = require('./modules/payments/payments.routes');
+const adminRoutes = require('./modules/admin/admin.routes');
+const pqrsRoutes = require('./modules/pqrs/pqrs.routes');
+const notificationsRoutes = require('./modules/notifications/notifications.routes');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors({
+  origin: function(origin, callback) {
+    const allowed = [
+      process.env.FRONTEND_URL,
+      'http://localhost:5173',
+      /\.vercel\.app$/
+    ];
+    if (!origin) return callback(null, true);
+    const isAllowed = allowed.some(a => 
+      a instanceof RegExp ? a.test(origin) : a === origin
+    );
+    callback(null, isAllowed ? origin : false);
+  },
+  credentials: true
+}));
+app.use(express.json());
+
+app.use('/api/auth', authRoutes);
+app.use('/api/wallet', walletRoutes);
+app.use('/api/transfers', transfersRoutes);
+app.use('/api/payments', paymentsRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/pqrs', pqrsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Plataforma de Créditos UPTC - API funcionando',
+    version: '1.0.0',
+    status: 'OK'
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
+
+module.exports = app;
+--- FIN: ./backend/src/index.js ---
+
+--- INICIO: ./backend/src/middlewares/auth.middleware.js ---
+const jwt = require('jsonwebtoken');
+
+const authMiddleware = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({ error: 'Acceso denegado. Token no proporcionado' });
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({ error: 'Token inválido o expirado' });
+  }
+};
+
+module.exports = authMiddleware;
+--- FIN: ./backend/src/middlewares/auth.middleware.js ---
+
+--- INICIO: ./backend/src/modules/admin/admin.controller.js ---
+const adminService = require('./admin.service');
+
+const obtenerMetricas = async (req, res) => {
+  try {
+    const metricas = await adminService.obtenerMetricas();
+    res.json({ metricas });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const obtenerUsuarios = async (req, res) => {
+  try {
+    const usuarios = await adminService.obtenerUsuarios();
+    res.json({ usuarios });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const obtenerTransacciones = async (req, res) => {
+  try {
+    const transacciones = await adminService.obtenerTransacciones();
+    res.json({ transacciones });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const toggleUsuario = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const usuario = await adminService.toggleUsuario(id);
+    res.json({ mensaje: `Usuario ${usuario.activo ? 'activado' : 'desactivado'}`, usuario });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = { obtenerMetricas, obtenerUsuarios, obtenerTransacciones, toggleUsuario };
+--- FIN: ./backend/src/modules/admin/admin.controller.js ---
+
+--- INICIO: ./backend/src/modules/admin/admin.routes.js ---
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../../middlewares/auth.middleware');
+const adminController = require('./admin.controller');
+
+router.use(authMiddleware);
+
+router.use((req, res, next) => {
+  if (req.user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Acceso restringido a administradores' });
+  }
+  next();
+});
+
+router.get('/metricas', adminController.obtenerMetricas);
+router.get('/usuarios', adminController.obtenerUsuarios);
+router.get('/transacciones', adminController.obtenerTransacciones);
+router.patch('/usuarios/:id/toggle', adminController.toggleUsuario);
+
+module.exports = router;
+
+--- FIN: ./backend/src/modules/admin/admin.routes.js ---
+
+--- INICIO: ./backend/src/modules/admin/admin.service.js ---
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const obtenerMetricas = async () => {
+  const [totalUsuarios, totalTransacciones, transaccionesHoy, creditosEnCirculacion] = await Promise.all([
+    prisma.user.count(),
+    prisma.payment.count(),
+    prisma.payment.count({
+      where: { createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } }
+    }),
+    prisma.wallet.aggregate({ _sum: { balance: true } })
+  ]);
+
+  return {
+    totalUsuarios,
+    totalTransacciones,
+    transaccionesHoy,
+    creditosEnCirculacion: creditosEnCirculacion._sum.balance || 0
+  };
+};
+
+const obtenerUsuarios = async () => {
+  return await prisma.user.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      code: true,
+      role: true,
+      isActive: true,
+      createdAt: true,
+      wallet: { select: { balance: true } }
+    },
+    orderBy: { createdAt: 'desc' }
+  });
+};
+
+const obtenerTransacciones = async () => {
+  return await prisma.payment.findMany({
+    include: {
+      user: { select: { name: true, code: true } }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100
+  });
+};
+
+const toggleUsuario = async (usuarioId) => {
+  const usuario = await prisma.user.findUnique({ where: { id: usuarioId } });
+  if (!usuario) throw new Error('Usuario no encontrado');
+
+  return await prisma.user.update({
+    where: { id: usuarioId },
+    data: { isActive: !usuario.isActive }
+  });
+};
+
+module.exports = { obtenerMetricas, obtenerUsuarios, obtenerTransacciones, toggleUsuario };
+--- FIN: ./backend/src/modules/admin/admin.service.js ---
+
+--- INICIO: ./backend/src/modules/auth/auth.controller.js ---
+const authService = require('./auth.service');
+
+const register = async (req, res) => {
+  try {
+    const { code, email, password } = req.body;
+    if (!code || !email || !password) {
+      return res.status(400).json({ error: 'Código, email y contraseña son obligatorios' });
+    }
+    const result = await authService.register({ code, email, password });
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const login = async (req, res) => {
+  try {
+    const { code, password } = req.body;
+    if (!code || !password) {
+      return res.status(400).json({ error: 'Código y contraseña son obligatorios' });
+    }
+    const result = await authService.login({ code, password });
+    res.json(result);
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
+};
+
+module.exports = { register, login };
+--- FIN: ./backend/src/modules/auth/auth.controller.js ---
+
+--- INICIO: ./backend/src/modules/auth/auth.routes.js ---
+const express = require('express');
+const router = express.Router();
+const authController = require('./auth.controller');
+
+// POST /api/auth/register
+router.post('/register', authController.register);
+
+// POST /api/auth/login
+router.post('/login', authController.login);
+
+module.exports = router;
+--- FIN: ./backend/src/modules/auth/auth.routes.js ---
+
+--- INICIO: ./backend/src/modules/auth/auth.service.js ---
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
+const siraAdapter = require('../../adapters/sira.adapter');
+
+const prisma = new PrismaClient();
+
+const register = async ({ code, email, password }) => {
+  // Verificar en SIRA que sea estudiante activo
+  const siraData = await siraAdapter.verificarEstudiante(code);
+  if (!siraData.activo) {
+    throw new Error('El código estudiantil no corresponde a un estudiante activo en el SIRA');
+  }
+
+  // Verificar que no exista ya
+  const existe = await prisma.user.findUnique({ where: { code } });
+  if (existe) {
+    throw new Error('Ya existe una cuenta con ese código estudiantil');
+  }
+
+  // Crear usuario
+  const hashedPassword = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: {
+      code,
+      email,
+      name: siraData.nombre,
+      program: siraData.programa,
+      password: hashedPassword,
+      wallet: { create: { balance: 0 } }
+    }
+  });
+
+  const token = jwt.sign(
+    { userId: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN }
+  );
+
+  return { token, user: { id: user.id, name: user.name, code: user.code, role: user.role } };
+};
+
+const login = async ({ code, password }) => {
+  const user = await prisma.user.findUnique({ where: { code } });
+  if (!user) throw new Error('Credenciales inválidas');
+  if (!user.isActive) throw new Error('Cuenta suspendida');
+
+  const valid = await bcrypt.compare(password, user.password);
+  if (!valid) throw new Error('Credenciales inválidas');
+
+  const token = jwt.sign(
+    { userId: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN }
+  );
+
+  return { token, user: { id: user.id, name: user.name, code: user.code, role: user.role } };
+};
+
+module.exports = { register, login };
+--- FIN: ./backend/src/modules/auth/auth.service.js ---
+
+--- INICIO: ./backend/src/modules/notifications/email.service.js ---
+const nodemailer = require('nodemailer');
+
+// Crea una cuenta de prueba en Ethereal automáticamente
+const crearTransporter = async () => {
+  const testAccount = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+};
+
+const enviarEmail = async ({ to, subject, html }) => {
+  try {
+    const transporter = await crearTransporter();
+    const info = await transporter.sendMail({
+      from: '"Créditos UPTC" <no-reply@uptc.edu.co>',
+      to,
+      subject,
+      html,
+    });
+    // URL para ver el email en Ethereal (solo en desarrollo)
+    console.log(`📧 Email enviado: ${nodemailer.getTestMessageUrl(info)}`);
+    return info;
+  } catch (error) {
+    // El email falla silenciosamente — no debe romper el flujo principal
+    console.error('Error al enviar email:', error.message);
+  }
+};
+
+// Templates de email
+const templates = {
+  compraCreditosExitosa: ({ nombre, creditos, precio, metodo, nuevoSaldo }) => ({
+    subject: '✅ Compra de créditos exitosa — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+          <p style="color:#888;margin:4px 0 0;font-size:13px;">Seccional Sogamoso</p>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Tu compra de créditos fue procesada exitosamente.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Créditos comprados</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${creditos} créditos</p>
+          </div>
+          <table style="width:100%;font-size:13px;color:#555;border-collapse:collapse;">
+            <tr><td style="padding:6px 0;">Valor pagado</td><td style="text-align:right;font-weight:bold;color:#1A1A1A;">$${precio?.toLocaleString('es-CO')}</td></tr>
+            <tr><td style="padding:6px 0;">Método</td><td style="text-align:right;">${metodo}</td></tr>
+            <tr style="border-top:1px solid #e0ddd4;"><td style="padding:8px 0;font-weight:bold;color:#1A1A1A;">Nuevo saldo</td><td style="text-align:right;font-weight:bold;color:#C8A400;font-size:16px;">${nuevoSaldo} créditos</td></tr>
+          </table>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  transferenciaEnviada: ({ nombre, destinatario, cantidad, nuevoSaldo }) => ({
+    subject: '↗️ Transferencia de créditos enviada — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Transferiste <strong>${cantidad} crédito(s)</strong> a <strong>${destinatario}</strong>.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Saldo restante</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${nuevoSaldo} créditos</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  transferenciaRecibida: ({ nombre, remitente, cantidad, nuevoSaldo }) => ({
+    subject: '↙️ Recibiste créditos — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;"><strong>${remitente}</strong> te transfirió <strong>${cantidad} crédito(s)</strong>.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Nuevo saldo</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${nuevoSaldo} créditos</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  ticketActualizado: ({ nombre, ticketNumber, titulo, nuevoEstado, mensaje }) => ({
+    subject: `📋 Tu ticket ${ticketNumber} fue actualizado — UPTC`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Tu ticket <strong>${ticketNumber}</strong> — "${titulo}" fue actualizado.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Nuevo estado</p>
+            <p style="margin:4px 0 0;font-size:18px;font-weight:bold;color:#1A1A1A;">${nuevoEstado}</p>
+          </div>
+          <div style="background:#f9f9f9;padding:12px;border-radius:4px;">
+            <p style="margin:0;font-size:13px;color:#888;">Respuesta del equipo de soporte:</p>
+            <p style="margin:8px 0 0;color:#1A1A1A;">${mensaje}</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+};
+
+module.exports = { enviarEmail, templates };
+
+--- FIN: ./backend/src/modules/notifications/email.service.js ---
+
+--- INICIO: ./backend/src/modules/notifications/emailaws.service.js ---
+const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
+
+const sesClient = new SESClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const enviarEmail = async ({ to, subject, html }) => {
+  const params = {
+    Destination: {
+      ToAddresses: [to],
+    },
+    Message: {
+      Body: {
+        Html: { Charset: 'UTF-8', Data: html },
+      },
+      Subject: { Charset: 'UTF-8', Data: subject },
+    },
+    Source: process.env.AWS_SES_FROM_EMAIL,
+  };
+
+  try {
+    const command = new SendEmailCommand(params);
+    const data = await sesClient.send(command);
+    console.log(`📧 Email AWS enviado a ${to} - ID: ${data.MessageId}`);
+    return data;
+  } catch (error) {
+    console.error('❌ Error al enviar email por AWS SES:', error.message);
+  }
+};
+
+// Se mantienen tus templates exactos para compatibilidad inmediata
+const templates = {
+  compraCreditosExitosa: ({ nombre, creditos, precio, metodo, nuevoSaldo }) => ({
+    subject: '✅ Compra de créditos exitosa — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Tu compra de <strong>${creditos} créditos</strong> por $${precio?.toLocaleString('es-CO')} vía ${metodo} fue exitosa.</p>
+          <p style="color:#1A1A1A;">Nuevo saldo: <strong>${nuevoSaldo} créditos</strong></p>
+        </div>
+      </div>
+    `,
+  }),
+  transferenciaEnviada: ({ nombre, destinatario, cantidad, nuevoSaldo }) => ({
+    subject: '↗️ Transferencia de créditos enviada — UPTC',
+    html: `<p>Hola <strong>${nombre}</strong>, enviaste ${cantidad} crédito(s) a ${destinatario}. Tu nuevo saldo es ${nuevoSaldo}.</p>`,
+  }),
+  transferenciaRecibida: ({ nombre, remitente, cantidad, nuevoSaldo }) => ({
+    subject: '↙️ Recibiste créditos — UPTC',
+    html: `<p>Hola <strong>${nombre}</strong>, recibiste ${cantidad} crédito(s) de ${remitente}. Tu nuevo saldo es ${nuevoSaldo}.</p>`,
+  }),
+};
+
+module.exports = { enviarEmail, templates };
+--- FIN: ./backend/src/modules/notifications/emailaws.service.js ---
+
+--- INICIO: ./backend/src/modules/notifications/notifications.controller.js ---
+const notificationsService = require('./notifications.service');
+
+const obtenerMisNotificaciones = async (req, res) => {
+  try {
+    const notificaciones = await notificationsService.obtenerMisNotificaciones(req.user.userId);
+    res.json({ notificaciones });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const marcarLeida = async (req, res) => {
+  try {
+    const notif = await notificationsService.marcarLeida(req.user.userId, req.params.id);
+    res.json({ mensaje: 'Notificación marcada como leída', notif });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const marcarTodasLeidas = async (req, res) => {
+  try {
+    await notificationsService.marcarTodasLeidas(req.user.userId);
+    res.json({ mensaje: 'Todas las notificaciones marcadas como leídas' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { obtenerMisNotificaciones, marcarLeida, marcarTodasLeidas };
+
+--- FIN: ./backend/src/modules/notifications/notifications.controller.js ---
+
+--- INICIO: ./backend/src/modules/notifications/notifications.routes.js ---
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../../middlewares/auth.middleware');
+const notificationsController = require('./notifications.controller');
+
+router.use(authMiddleware);
+
+router.get('/', notificationsController.obtenerMisNotificaciones);
+router.put('/:id/leer', notificationsController.marcarLeida);
+router.put('/leer/todas', notificationsController.marcarTodasLeidas);
+
+module.exports = router;
+--- FIN: ./backend/src/modules/notifications/notifications.routes.js ---
+
+--- INICIO: ./backend/src/modules/notifications/notifications.service.js ---
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const crearNotificacion = async (userId, { type, title, message }) => {
+  return await prisma.notification.create({
+    data: { userId, type, title, message, read: false }
+  });
+};
+
+const obtenerMisNotificaciones = async (userId) => {
+  return await prisma.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  });
+};
+
+const marcarLeida = async (userId, notificationId) => {
+  const notif = await prisma.notification.findUnique({ where: { id: notificationId } });
+  if (!notif) throw new Error('Notificación no encontrada');
+  if (notif.userId !== userId) throw new Error('No tienes permiso');
+
+  return await prisma.notification.update({
+    where: { id: notificationId },
+    data: { read: true }
+  });
+};
+
+const marcarTodasLeidas = async (userId) => {
+  return await prisma.notification.updateMany({
+    where: { userId, read: false },
+    data: { read: true }
+  });
+};
+
+module.exports = { crearNotificacion, obtenerMisNotificaciones, marcarLeida, marcarTodasLeidas };
+--- FIN: ./backend/src/modules/notifications/notifications.service.js ---
+
+--- INICIO: ./backend/src/modules/notifications/smsaws.service.js ---
+const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
+
+const snsClient = new SNSClient({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const enviarSMS = async ({ telefono, mensaje }) => {
+  // Nota: El número debe estar en formato internacional E.164 (Ej: +573001234567)
+  const params = {
+    Message: mensaje,
+    PhoneNumber: telefono,
+  };
+
+  try {
+    const command = new PublishCommand(params);
+    const data = await snsClient.send(command);
+    console.log(`📱 SMS AWS enviado a ${telefono} - ID: ${data.MessageId}`);
+    return data;
+  } catch (error) {
+    console.error('❌ Error al enviar SMS por AWS SNS:', error.message);
+  }
+};
+
+const templatesSMS = {
+  compraExitosa: (creditos, saldo) => `UPTC: Compraste ${creditos} creditos. Saldo actual: ${saldo}.`,
+  transferenciaRecibida: (cantidad, remitente) => `UPTC: Recibiste ${cantidad} creditos de ${remitente}.`,
+};
+
+module.exports = { enviarSMS, templatesSMS };
+--- FIN: ./backend/src/modules/notifications/smsaws.service.js ---
+
+--- INICIO: ./backend/src/modules/payments/payments.controller.js ---
+const paymentsService = require('./payments.service');
+
+const iniciarCompra = async (req, res) => {
+  try {
+    const { cantidadCreditos, metodo } = req.body;
+    if (!cantidadCreditos || !metodo) {
+      return res.status(400).json({ error: 'Se requieren cantidadCreditos y metodo' });
+    }
+    const resultado = await paymentsService.iniciarCompra(
+      req.user.userId,
+      { cantidadCreditos: parseInt(cantidadCreditos), metodo }
+    );
+    res.json({ mensaje: 'Compra realizada exitosamente', datos: resultado });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const obtenerOpciones = async (req, res) => {
+  try {
+    const opciones = paymentsService.obtenerOpciones();
+    res.json({ opciones });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { iniciarCompra, obtenerOpciones };
+
+--- FIN: ./backend/src/modules/payments/payments.controller.js ---
+
+--- INICIO: ./backend/src/modules/payments/payments.routes.js ---
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../../middlewares/auth.middleware');
+const paymentsController = require('./payments.controller');
+
+router.use(authMiddleware);
+
+router.get('/opciones', paymentsController.obtenerOpciones);
+router.post('/iniciar', paymentsController.iniciarCompra);
+
+module.exports = router;
+--- FIN: ./backend/src/modules/payments/payments.routes.js ---
+
+--- INICIO: ./backend/src/modules/payments/payments.service.js ---
+const { PrismaClient } = require('@prisma/client');
+const { crearNotificacion } = require('../notifications/notifications.service');
+const { enviarEmail, templates } = require('../notifications/emailaws.service');
+const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
+
+const prisma = new PrismaClient();
+const PRECIOS = { 1: 32500, 2: 65000, 3: 97500, 5: 162500, 10: 325000 };
+
+const obtenerOpciones = () => {
+  return Object.entries(PRECIOS).map(([creditos, precio]) => ({
+    creditos: Number(creditos), precio
+  }));
+};
+
+const iniciarCompra = async (userId, { cantidadCreditos, metodo }) => {
+  const metodosValidos = ['NEQUI', 'PSE', 'TARJETA'];
+  if (!metodosValidos.includes(metodo)) throw new Error('Método de pago no válido');
+  const precio = PRECIOS[cantidadCreditos];
+  if (!precio) throw new Error('Cantidad de créditos no válida');
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { wallet: true }
+  });
+  if (!user) throw new Error('Usuario no encontrado');
+  if (!user.isActive) throw new Error('Tu cuenta está inactiva');
+
+  const [payment, wallet] = await prisma.$transaction([
+    prisma.payment.create({
+      data: { userId, credits: cantidadCreditos, amount: precio, method: metodo, status: 'APPROVED' }
+    }),
+    prisma.wallet.update({
+      where: { userId },
+      data: { balance: { increment: cantidadCreditos } }
+    }),
+    prisma.transaction.create({
+      data: { walletId: (await prisma.wallet.findUnique({ where: { userId } })).id, type: 'PURCHASE', amount: cantidadCreditos, description: `Compra de ${cantidadCreditos} crédito(s) vía ${metodo}` }
+    })
+  ]);
+
+  const nuevoSaldo = wallet.balance;
+
+  // Notificación en BD
+  crearNotificacion(userId, {
+    type: 'PURCHASE_COMPLETED',
+    title: 'Compra exitosa',
+    message: `Compraste ${cantidadCreditos} crédito(s). Nuevo saldo: ${nuevoSaldo}`
+  }).catch(() => {});
+
+  // 📧 Notificación Email (AWS SES)
+  if (user.email) {
+    const { subject, html } = templates.compraCreditosExitosa({
+      nombre: user.name, creditos: cantidadCreditos, precio, metodo, nuevoSaldo
+    });
+    enviarEmail({ to: user.email, subject, html }).catch(() => {});
+  }
+
+  // 📱 Notificación SMS (AWS SNS)
+  if (user.phone) {
+    const mensajeSMS = templatesSMS.compraExitosa(cantidadCreditos, nuevoSaldo);
+    enviarSMS({ telefono: user.phone, mensaje: mensajeSMS }).catch(() => {});
+  }
+
+  return { creditosComprados: cantidadCreditos, precioPagado: precio, metodo, nuevoSaldo };
+};
+
+module.exports = { obtenerOpciones, iniciarCompra };
+--- FIN: ./backend/src/modules/payments/payments.service.js ---
+
+--- INICIO: ./backend/src/modules/pqrs/pqrs.controller.js ---
+const pqrsService = require('./pqrs.service');
+
+const crearTicket = async (req, res) => {
+  try {
+    const { type, title, description } = req.body;
+    const ticket = await pqrsService.crearTicket(req.user.userId, { type, title, description });
+    res.status(201).json({ mensaje: 'Ticket creado exitosamente', ticket });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+const obtenerMisTickets = async (req, res) => {
+  try {
+    const tickets = await pqrsService.obtenerMisTickets(req.user.userId);
+    res.json({ tickets });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const obtenerTicketPorId = async (req, res) => {
+  try {
+    const ticket = await pqrsService.obtenerTicketPorId(req.user.userId, req.params.id);
+    res.json({ ticket });
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+};
+
+// Admin
+const obtenerTodosLosTickets = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Acceso denegado' });
+    const tickets = await pqrsService.obtenerTodosLosTickets();
+    res.json({ tickets });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const responderTicket = async (req, res) => {
+  try {
+    if (req.user.role !== 'ADMIN') return res.status(403).json({ error: 'Acceso denegado' });
+    const { message, status } = req.body;
+    const ticket = await pqrsService.responderTicket(req.params.id, { message, status });
+    res.json({ mensaje: 'Ticket actualizado', ticket });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId, obtenerTodosLosTickets, responderTicket };
+--- FIN: ./backend/src/modules/pqrs/pqrs.controller.js ---
+
+--- INICIO: ./backend/src/modules/pqrs/pqrs.routes.js ---
+const express = require('express');
+const router = express.Router();
+const authMiddleware = require('../../middlewares/auth.middleware');
+const pqrsController = require('./pqrs.controller');
+
+router.use(authMiddleware);
+
+router.post('/', pqrsController.crearTicket);
+router.get('/', pqrsController.obtenerMisTickets);
+
+router.get('/admin/todos', pqrsController.obtenerTodosLosTickets);
+router.patch('/:id/responder', pqrsController.responderTicket);
+
+router.get('/:id', pqrsController.obtenerTicketPorId);
+
+module.exports = router;
+
+--- FIN: ./backend/src/modules/pqrs/pqrs.routes.js ---
+
+--- INICIO: ./backend/src/modules/pqrs/pqrs.service.js ---
+const { PrismaClient } = require('@prisma/client');
+const { enviarEmail, templates } = require('../notifications/email.service');
+const prisma = new PrismaClient();
+
+const generarNumeroTicket = () => {
+  const fecha = new Date();
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const random = Math.floor(Math.random() * 9000) + 1000;
+  return `UPTC-${año}${mes}-${random}`;
+};
+
+const crearTicket = async (userId, { type, title, description }) => {
+  const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
+  if (!tiposValidos.includes(type)) throw new Error('Tipo no válido');
+  if (!title || !description) throw new Error('El título y la descripción son obligatorios');
+  const ticketNumber = generarNumeroTicket();
+  return await prisma.pQRS.create({
+    data: { ticketNumber, type, title, description, status: 'ABIERTO', userId }
+  });
+};
+
+const obtenerMisTickets = async (userId) => {
+  return await prisma.pQRS.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
+  });
+};
+
+const obtenerTicketPorId = async (userId, ticketId) => {
+  const ticket = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
+  });
+  if (!ticket) throw new Error('Ticket no encontrado');
+  if (ticket.userId !== userId) throw new Error('No tienes permiso para ver este ticket');
+  return ticket;
+};
+
+const obtenerTodosLosTickets = async () => {
+  return await prisma.pQRS.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: { select: { name: true, code: true, email: true } },
+      updates: { orderBy: { createdAt: 'asc' } }
+    }
+  });
+};
+
+const responderTicket = async (ticketId, { message, status }) => {
+  const estadosValidos = ['ABIERTO', 'EN_REVISION', 'RESUELTO', 'CERRADO'];
+  if (!estadosValidos.includes(status)) throw new Error('Estado no válido');
+  if (!message) throw new Error('El mensaje es obligatorio');
+
+  const ticketActual = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { user: true }
+  });
+  if (!ticketActual) throw new Error('Ticket no encontrado');
+
+  const [, ticket] = await prisma.$transaction([
+    prisma.pQRSUpdate.create({
+      data: { pqrsId: ticketId, message, status }
+    }),
+    prisma.pQRS.update({
+      where: { id: ticketId },
+      data: {
+        status,
+        resolvedAt: status === 'RESUELTO' || status === 'CERRADO' ? new Date() : null
+      },
+      include: { updates: { orderBy: { createdAt: 'asc' } } }
+    })
+  ]);
+
+  // Email al estudiante
+  if (ticketActual.user?.email) {
+    const { subject, html } = templates.ticketActualizado({
+      nombre: ticketActual.user.name,
+      ticketNumber: ticketActual.ticketNumber,
+      titulo: ticketActual.title,
+      nuevoEstado: status,
+      mensaje: message
+    });
+    enviarEmail({ to: ticketActual.user.email, subject, html });
+  }
+
+  return ticket;
+};
+
+module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId, obtenerTodosLosTickets, responderTicket };
+
+--- FIN: ./backend/src/modules/pqrs/pqrs.service.js ---
+
+--- INICIO: ./backend/src/modules/transfers/transfers.controller.js ---
+const transfersService = require('./transfers.service');
+
+const transferir = async (req, res) => {
+  try {
+    const { destinatarioCode, cantidad } = req.body;
+    if (!destinatarioCode || !cantidad) {
+      return res.status(400).json({ error: 'Código del destinatario y cantidad son obligatorios' });
+    }
+    const result = await transfersService.transferir(req.user.userId, {
+      destinatarioCode,
+      cantidad: Number(cantidad)
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+module.exports = { transferir };
+--- FIN: ./backend/src/modules/transfers/transfers.controller.js ---
+
+--- INICIO: ./backend/src/modules/transfers/transfers.routes.js ---
+const express = require('express');
+const router = express.Router();
+const transfersController = require('./transfers.controller');
+const authMiddleware = require('../../middlewares/auth.middleware');
+
+// Todas las rutas requieren autenticación
+router.use(authMiddleware);
+
+// POST /api/transfers
+router.post('/', transfersController.transferir);
+
+module.exports = router;
+--- FIN: ./backend/src/modules/transfers/transfers.routes.js ---
+
+--- INICIO: ./backend/src/modules/transfers/transfers.service.js ---
+const { PrismaClient } = require('@prisma/client');
+const { enviarEmail, templates } = require('../notifications/emailaws.service');
+const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
+const prisma = new PrismaClient();
+
+const transferir = async (senderUserId, { destinatarioCode, cantidad }) => {
+  if (!destinatarioCode || !cantidad) throw new Error('Código del destinatario y cantidad son obligatorios');
+  if (cantidad <= 0) throw new Error('La cantidad debe ser mayor a cero');
+
+  const destinatario = await prisma.user.findUnique({
+    where: { code: destinatarioCode },
+    include: { wallet: true }
+  });
+  if (!destinatario) throw new Error('El destinatario no existe en el sistema');
+  if (!destinatario.isActive) throw new Error('El destinatario no es un estudiante activo');
+  if (destinatario.id === senderUserId) throw new Error('No puedes transferirte créditos a ti mismo');
+
+  const senderWallet = await prisma.wallet.findUnique({ where: { userId: senderUserId } });
+  if (!senderWallet) throw new Error('Billetera del remitente no encontrada');
+  if (senderWallet.balance < cantidad) throw new Error('Saldo insuficiente para realizar la transferencia');
+
+  const sender = await prisma.user.findUnique({ where: { id: senderUserId } });
+
+  const result = await prisma.$transaction(async (tx) => {
+    await tx.wallet.update({ where: { userId: senderUserId }, data: { balance: { decrement: cantidad } } });
+    await tx.wallet.update({ where: { userId: destinatario.id }, data: { balance: { increment: cantidad } } });
+    const transfer = await tx.transfer.create({
+      data: { senderId: senderUserId, receiverId: destinatario.id, amount: cantidad, status: 'COMPLETED' }
+    });
+    await tx.transaction.create({
+      data: { type: 'TRANSFER_SENT', amount: cantidad, status: 'COMPLETED', walletId: senderWallet.id, transferId: transfer.id, description: `Transferencia enviada de ${cantidad} crédito(s) a ${destinatario.name}` }
+    });
+    await tx.transaction.create({
+      data: { type: 'TRANSFER_RECEIVED', amount: cantidad, status: 'COMPLETED', walletId: destinatario.wallet.id, transferId: transfer.id, description: `Transferencia recibida de ${cantidad} crédito(s)` }
+    });
+    return transfer;
+  });
+
+  const senderSaldoNuevo = senderWallet.balance - cantidad;
+  const destinatarioSaldoNuevo = destinatario.wallet.balance + cantidad;
+
+  // ==========================================
+  // NOTIFICACIONES AL REMITENTE (QUIEN ENVÍA)
+  // ==========================================
+  if (sender?.email) {
+    const { subject, html } = templates.transferenciaEnviada({
+      nombre: sender.name, destinatario: destinatario.name, cantidad, nuevoSaldo: senderSaldoNuevo
+    });
+    enviarEmail({ to: sender.email, subject, html }).catch(() => {});
+  }
+  // Notificación SMS no incluida para quien envía en las templates, pero si quieres puedes agregarla después.
+
+  // ==========================================
+  // NOTIFICACIONES AL DESTINATARIO (QUIEN RECIBE)
+  // ==========================================
+  if (destinatario?.email) {
+    const { subject, html } = templates.transferenciaRecibida({
+      nombre: destinatario.name, remitente: sender.name, cantidad, nuevoSaldo: destinatarioSaldoNuevo
+    });
+    enviarEmail({ to: destinatario.email, subject, html }).catch(() => {});
+  }
+  
+  if (destinatario?.phone) {
+    const mensajeSMS = templatesSMS.transferenciaRecibida(cantidad, sender.name);
+    enviarSMS({ telefono: destinatario.phone, mensaje: mensajeSMS }).catch(() => {});
+  }
+
+  return {
+    mensaje: 'Transferencia realizada exitosamente',
+    transaccionId: result.id,
+    cantidad,
+    destinatario: { nombre: destinatario.name, code: destinatario.code }
+  };
+};
+
+module.exports = { transferir };
+--- FIN: ./backend/src/modules/transfers/transfers.service.js ---
+
+--- INICIO: ./backend/src/modules/wallet/wallet.controller.js ---
+const walletService = require('./wallet.service');
+
+const getSaldo = async (req, res) => {
+  try {
+    const result = await walletService.getSaldo(req.user.userId);
+    res.json(result);
+  } catch (error) {
+    res.status(404).json({ error: error.message });
+  }
+};
+
+const getHistorial = async (req, res) => {
+  try {
+    const { tipo, fechaInicio, fechaFin, page, limit } = req.query;
+    const result = await walletService.getHistorial(req.user.userId, {
+      tipo,
+      fechaInicio,
+      fechaFin,
+      page,
+      limit
+    });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = { getSaldo, getHistorial };
+--- FIN: ./backend/src/modules/wallet/wallet.controller.js ---
+
+--- INICIO: ./backend/src/modules/wallet/wallet.routes.js ---
+const express = require('express');
+const router = express.Router();
+const walletController = require('./wallet.controller');
+const authMiddleware = require('../../middlewares/auth.middleware');
+
+// Todas las rutas de wallet requieren autenticación
+router.use(authMiddleware);
+
+// GET /api/wallet/saldo
+router.get('/saldo', walletController.getSaldo);
+
+// GET /api/wallet/historial
+router.get('/historial', walletController.getHistorial);
+
+module.exports = router;
+--- FIN: ./backend/src/modules/wallet/wallet.routes.js ---
+
+--- INICIO: ./backend/src/modules/wallet/wallet.service.js ---
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
+
+const getSaldo = async (userId) => {
+  const wallet = await prisma.wallet.findUnique({
+    where: { userId },
+    select: { balance: true, updatedAt: true }
+  });
+
+  if (!wallet) throw new Error('Billetera no encontrada');
+
+  return { balance: wallet.balance, updatedAt: wallet.updatedAt };
+};
+
+const getHistorial = async (userId, filtros = {}) => {
+  const { tipo, fechaInicio, fechaFin, page = 1, limit = 10 } = filtros;
+
+  const wallet = await prisma.wallet.findUnique({ where: { userId } });
+  if (!wallet) throw new Error('Billetera no encontrada');
+
+  const where = { walletId: wallet.id };
+
+  if (tipo) where.type = tipo;
+  if (fechaInicio || fechaFin) {
+    where.createdAt = {};
+    if (fechaInicio) where.createdAt.gte = new Date(fechaInicio);
+    if (fechaFin) where.createdAt.lte = new Date(fechaFin);
+  }
+
+  const [transactions, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * limit,
+      take: Number(limit),
+    }),
+    prisma.transaction.count({ where })
+  ]);
+
+  return { transactions, total, page: Number(page), totalPages: Math.ceil(total / limit) };
+};
+
+module.exports = { getSaldo, getHistorial };
+--- FIN: ./backend/src/modules/wallet/wallet.service.js ---
+
+--- INICIO: ./backend/test_aws.js ---
+require('dotenv').config();
+const { enviarEmail } = require('./src/modules/notifications/emailaws.service.js');
+const { enviarSMS } = require('./src/modules/notifications/smsaws.service.js');
+
+const probarNotificaciones = async () => {
+  console.log('⏳ Probando envío de notificaciones por AWS...');
+
+  // 1. Probar Email
+  // Cambia este correo por tu correo personal para verificar que llega
+  await enviarEmail({
+    to: 'afcardozori@gmail.com', 
+    subject: '🧪 Prueba de Integración AWS SES',
+    html: '<h2>¡Funciona!</h2><p>El servicio de Amazon SES está correctamente configurado.</p>'
+  });
+
+  // 2. Probar SMS
+  // Cambia el número. Debe llevar código de país (ej: +57 para Colombia)
+  await enviarSMS({
+    telefono: '+573150491124', 
+    mensaje: 'Prueba desde Plataforma UPTC usando Amazon SNS.'
+  });
+
+  console.log('✅ Fin de las pruebas.');
+};
+
+probarNotificaciones();
+--- FIN: ./backend/test_aws.js ---
+
+--- INICIO: ./conectar_emails.sh ---
+#!/bin/bash
+MODULES="$HOME/Documents/proyectos/PlataformadeComprayGestiondeCreditos/backend/src/modules"
+
+# 1. Copiar email.service.js a notifications
+cp "$(dirname "$0")/email.service.js" "$MODULES/notifications/email.service.js"
+echo "✅ email.service.js copiado"
+
+# 2. payments.service.js — agregar email al confirmar compra
+cat > "$MODULES/payments/payments.service.js" << 'JSEOF'
+const { PrismaClient } = require('@prisma/client');
+const { crearNotificacion } = require('../notifications/notifications.service');
+const { enviarEmail, templates } = require('../notifications/email.service');
+const prisma = new PrismaClient();
+
+const PRECIOS = { 1: 32500, 2: 65000, 3: 97500, 5: 162500, 10: 325000 };
+
+const obtenerOpciones = () => {
+  return Object.entries(PRECIOS).map(([creditos, precio]) => ({
+    creditos: Number(creditos), precio
+  }));
+};
+
+const iniciarCompra = async (userId, { cantidadCreditos, metodo }) => {
+  const metodosValidos = ['NEQUI', 'PSE', 'TARJETA'];
+  if (!metodosValidos.includes(metodo)) throw new Error('Método de pago no válido');
+  const precio = PRECIOS[cantidadCreditos];
+  if (!precio) throw new Error('Cantidad de créditos no válida');
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { wallet: true }
+  });
+  if (!user) throw new Error('Usuario no encontrado');
+  if (!user.isActive) throw new Error('Tu cuenta está inactiva');
+
+  const [payment, wallet] = await prisma.$transaction([
+    prisma.payment.create({
+      data: { userId, credits: cantidadCreditos, amount: precio, method: metodo, status: 'APPROVED' }
+    }),
+    prisma.wallet.update({
+      where: { userId },
+      data: { balance: { increment: cantidadCreditos } }
+    }),
+    prisma.transaction.create({
+      data: { walletId: (await prisma.wallet.findUnique({ where: { userId } })).id, type: 'PURCHASE', amount: cantidadCreditos, description: `Compra de ${cantidadCreditos} crédito(s) vía ${metodo}` }
+    })
+  ]);
+
+  const nuevoSaldo = wallet.balance;
+
+  // Notificación en BD
+  await crearNotificacion(userId, {
+    type: 'PAYMENT',
+    title: 'Compra exitosa',
+    message: `Compraste ${cantidadCreditos} crédito(s). Nuevo saldo: ${nuevoSaldo}`
+  }).catch(() => {});
+
+  // Email
+  if (user.email) {
+    const { subject, html } = templates.compraCreditosExitosa({
+      nombre: user.name,
+      creditos: cantidadCreditos,
+      precio,
+      metodo,
+      nuevoSaldo
+    });
+    await enviarEmail({ to: user.email, subject, html });
+  }
+
+  return { creditosComprados: cantidadCreditos, precioPagado: precio, metodo, nuevoSaldo };
+};
+
+module.exports = { obtenerOpciones, iniciarCompra };
+JSEOF
+echo "✅ payments.service.js actualizado"
+
+# 3. pqrs.service.js — agregar email al responder ticket
+cat > "$MODULES/pqrs/pqrs.service.js" << 'JSEOF'
+const { PrismaClient } = require('@prisma/client');
+const { enviarEmail, templates } = require('../notifications/email.service');
+const prisma = new PrismaClient();
+
+const generarNumeroTicket = () => {
+  const fecha = new Date();
+  const año = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const random = Math.floor(Math.random() * 9000) + 1000;
+  return `UPTC-${año}${mes}-${random}`;
+};
+
+const crearTicket = async (userId, { type, title, description }) => {
+  const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
+  if (!tiposValidos.includes(type)) throw new Error('Tipo no válido');
+  if (!title || !description) throw new Error('El título y la descripción son obligatorios');
+  const ticketNumber = generarNumeroTicket();
+  return await prisma.pQRS.create({
+    data: { ticketNumber, type, title, description, status: 'ABIERTO', userId }
+  });
+};
+
+const obtenerMisTickets = async (userId) => {
+  return await prisma.pQRS.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
+  });
+};
+
+const obtenerTicketPorId = async (userId, ticketId) => {
+  const ticket = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { updates: { orderBy: { createdAt: 'asc' } } }
+  });
+  if (!ticket) throw new Error('Ticket no encontrado');
+  if (ticket.userId !== userId) throw new Error('No tienes permiso para ver este ticket');
+  return ticket;
+};
+
+const obtenerTodosLosTickets = async () => {
+  return await prisma.pQRS.findMany({
+    orderBy: { createdAt: 'desc' },
+    include: {
+      user: { select: { name: true, code: true, email: true } },
+      updates: { orderBy: { createdAt: 'asc' } }
+    }
+  });
+};
+
+const responderTicket = async (ticketId, { message, status }) => {
+  const estadosValidos = ['ABIERTO', 'EN_REVISION', 'RESUELTO', 'CERRADO'];
+  if (!estadosValidos.includes(status)) throw new Error('Estado no válido');
+  if (!message) throw new Error('El mensaje es obligatorio');
+
+  const ticketActual = await prisma.pQRS.findUnique({
+    where: { id: ticketId },
+    include: { user: true }
+  });
+  if (!ticketActual) throw new Error('Ticket no encontrado');
+
+  const [, ticket] = await prisma.$transaction([
+    prisma.pQRSUpdate.create({
+      data: { pqrsId: ticketId, message, status }
+    }),
+    prisma.pQRS.update({
+      where: { id: ticketId },
+      data: {
+        status,
+        resolvedAt: status === 'RESUELTO' || status === 'CERRADO' ? new Date() : null
+      },
+      include: { updates: { orderBy: { createdAt: 'asc' } } }
+    })
+  ]);
+
+  // Email al estudiante
+  if (ticketActual.user?.email) {
+    const { subject, html } = templates.ticketActualizado({
+      nombre: ticketActual.user.name,
+      ticketNumber: ticketActual.ticketNumber,
+      titulo: ticketActual.title,
+      nuevoEstado: status,
+      mensaje: message
+    });
+    await enviarEmail({ to: ticketActual.user.email, subject, html });
+  }
+
+  return ticket;
+};
+
+module.exports = { crearTicket, obtenerMisTickets, obtenerTicketPorId, obtenerTodosLosTickets, responderTicket };
+JSEOF
+echo "✅ pqrs.service.js actualizado con email"
+
+echo ""
+echo "✅ Todo listo. Reinicia el backend: node src/index.js"
+
+--- FIN: ./conectar_emails.sh ---
+
+--- INICIO: ./contexto.sh ---
+#!/bin/bash
+
+OUTPUT_FILE="contexto_proyecto.txt"
+
+if [ -f "$OUTPUT_FILE" ]; then
+    rm "$OUTPUT_FILE"
+    echo "🗑️  Archivo anterior eliminado."
+fi
+
+# --- 1. CONFIGURACIÓN DE EXCLUSIONES ---
+
+# Carpetas a ignorar (en CUALQUIER nivel de profundidad)
+DIRS_TO_PRUNE=(
+    "node_modules"
+    ".git"
+    "dist"
+    "build"
+    "logs"
+    ".vscode"
+    "db_data"
+    "mongo-data"
+)
+
+# Archivos a ignorar
+FILES_TO_IGNORE=(
+    "*.db"
+    "*.sqlite"
+    "package-lock.json"
+    "yarn.lock"
+    "contexto_proyecto.txt"
+    "*.png"
+    "*.jpg"
+    "*.jpeg"
+    "*.ico"
+    "*.svg"
+    ".env" # Ignorado por seguridad, .env.example sí se incluirá
+)
+
+# --- 2. CONSTRUIR ARGUMENTOS PARA 'FIND' ---
+
+PRUNE_ARGS=()
+for dir in "${DIRS_TO_PRUNE[@]}"; do
+    if [ ${#PRUNE_ARGS[@]} -gt 0 ]; then
+        PRUNE_ARGS+=("-o")
+    fi
+    PRUNE_ARGS+=("-name" "$dir")
+done
+
+FILE_ARGS=()
+for file in "${FILES_TO_IGNORE[@]}"; do
+    FILE_ARGS+=("!" "-name" "$file")
+done
+
+# --- 3. EJECUCIÓN ---
+
+echo "⏳ Generando estructura del proyecto..."
+
+# Generamos un árbol usando 'find' y 'sed' (No requiere tener instalado 'tree')
+echo "🌳 Estructura del Proyecto (solo Core):" > "$OUTPUT_FILE"
+find . -type d \( "${PRUNE_ARGS[@]}" \) -prune -o -print | sed -e 's;[^/]*/;|____;g;s;____|; |;g' >> "$OUTPUT_FILE"
+
+echo -e "\n\n---\n\n📄 Contenido de los Archivos:\n" >> "$OUTPUT_FILE"
+
+echo "⏳ Extrayendo código..."
+
+# Leemos los archivos ignorando drásticamente las carpetas pesadas (-prune)
+find . -type d \( "${PRUNE_ARGS[@]}" \) -prune -o -type f "${FILE_ARGS[@]}" -exec sh -c '
+    echo "--- INICIO: {} ---" >> "$1"
+    cat "{}" >> "$1"
+    echo -e "\n--- FIN: {} ---\n" >> "$1"
+' sh "$OUTPUT_FILE" \;
+
+echo "✅ ¡Listo! El contexto condensado y limpio se ha guardado en $OUTPUT_FILE"
+--- FIN: ./contexto.sh ---
+
+--- INICIO: ./docker-compose.yml ---
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: uptc-db
+    environment:
+      POSTGRES_USER: uptc_user
+      POSTGRES_PASSWORD: uptc_password
+      POSTGRES_DB: creditos_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: uptc-backend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://uptc_user:uptc_password@postgres:5432/creditos_db
+      JWT_SECRET: tu_clave_secreta_aqui
+
+  frontend:
+    build: ./frontend
+    container_name: uptc-frontend
+    ports:
+      - "5173:5173"
+
+volumes:
+  postgres_data:
+
+--- FIN: ./docker-compose.yml ---
+
+--- INICIO: ./email.service.js ---
+const nodemailer = require('nodemailer');
+
+// Crea una cuenta de prueba en Ethereal automáticamente
+const crearTransporter = async () => {
+  const testAccount = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: testAccount.user,
+      pass: testAccount.pass,
+    },
+  });
+};
+
+const enviarEmail = async ({ to, subject, html }) => {
+  try {
+    const transporter = await crearTransporter();
+    const info = await transporter.sendMail({
+      from: '"Créditos UPTC" <no-reply@uptc.edu.co>',
+      to,
+      subject,
+      html,
+    });
+    // URL para ver el email en Ethereal (solo en desarrollo)
+    console.log(`📧 Email enviado: ${nodemailer.getTestMessageUrl(info)}`);
+    return info;
+  } catch (error) {
+    // El email falla silenciosamente — no debe romper el flujo principal
+    console.error('Error al enviar email:', error.message);
+  }
+};
+
+// Templates de email
+const templates = {
+  compraCreditosExitosa: ({ nombre, creditos, precio, metodo, nuevoSaldo }) => ({
+    subject: '✅ Compra de créditos exitosa — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+          <p style="color:#888;margin:4px 0 0;font-size:13px;">Seccional Sogamoso</p>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Tu compra de créditos fue procesada exitosamente.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Créditos comprados</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${creditos} créditos</p>
+          </div>
+          <table style="width:100%;font-size:13px;color:#555;border-collapse:collapse;">
+            <tr><td style="padding:6px 0;">Valor pagado</td><td style="text-align:right;font-weight:bold;color:#1A1A1A;">$${precio?.toLocaleString('es-CO')}</td></tr>
+            <tr><td style="padding:6px 0;">Método</td><td style="text-align:right;">${metodo}</td></tr>
+            <tr style="border-top:1px solid #e0ddd4;"><td style="padding:8px 0;font-weight:bold;color:#1A1A1A;">Nuevo saldo</td><td style="text-align:right;font-weight:bold;color:#C8A400;font-size:16px;">${nuevoSaldo} créditos</td></tr>
+          </table>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  transferenciaEnviada: ({ nombre, destinatario, cantidad, nuevoSaldo }) => ({
+    subject: '↗️ Transferencia de créditos enviada — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Transferiste <strong>${cantidad} crédito(s)</strong> a <strong>${destinatario}</strong>.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Saldo restante</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${nuevoSaldo} créditos</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  transferenciaRecibida: ({ nombre, remitente, cantidad, nuevoSaldo }) => ({
+    subject: '↙️ Recibiste créditos — UPTC',
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;"><strong>${remitente}</strong> te transfirió <strong>${cantidad} crédito(s)</strong>.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Nuevo saldo</p>
+            <p style="margin:4px 0 0;font-size:28px;font-weight:bold;color:#1A1A1A;">${nuevoSaldo} créditos</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+
+  ticketActualizado: ({ nombre, ticketNumber, titulo, nuevoEstado, mensaje }) => ({
+    subject: `📋 Tu ticket ${ticketNumber} fue actualizado — UPTC`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Créditos UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Tu ticket <strong>${ticketNumber}</strong> — "${titulo}" fue actualizado.</p>
+          <div style="background:#FFF9E6;border-left:4px solid #C8A400;padding:16px;border-radius:4px;margin:16px 0;">
+            <p style="margin:0;font-size:13px;color:#888;">Nuevo estado</p>
+            <p style="margin:4px 0 0;font-size:18px;font-weight:bold;color:#1A1A1A;">${nuevoEstado}</p>
+          </div>
+          <div style="background:#f9f9f9;padding:12px;border-radius:4px;">
+            <p style="margin:0;font-size:13px;color:#888;">Respuesta del equipo de soporte:</p>
+            <p style="margin:8px 0 0;color:#1A1A1A;">${mensaje}</p>
+          </div>
+          <p style="font-size:12px;color:#aaa;margin-top:24px;">Este es un correo automático, no responder.</p>
+        </div>
+      </div>
+    `,
+  }),
+};
+
+module.exports = { enviarEmail, templates };
+
+--- FIN: ./email.service.js ---
+
+--- INICIO: ./fix_email_async.sh ---
+#!/bin/bash
+TRANSFERS="$HOME/Documents/proyectos/PlataformadeComprayGestiondeCreditos/backend/src/modules/transfers/transfers.service.js"
+PQRS="$HOME/Documents/proyectos/PlataformadeComprayGestiondeCreditos/backend/src/modules/pqrs/pqrs.service.js"
+PAYMENTS="$HOME/Documents/proyectos/PlataformadeComprayGestiondeCreditos/backend/src/modules/payments/payments.service.js"
+
+# En transfers: quitar await del envío de emails
+sed -i 's/await enviarEmail({ to: sender/enviarEmail({ to: sender/g' "$TRANSFERS"
+sed -i 's/await enviarEmail({ to: destinatario/enviarEmail({ to: destinatario/g' "$TRANSFERS"
+
+# En pqrs: quitar await del envío de email  
+sed -i 's/await enviarEmail({ to: ticketActual/enviarEmail({ to: ticketActual/g' "$PQRS"
+
+# En payments: quitar await del envío de email
+sed -i 's/await enviarEmail({ to: user/enviarEmail({ to: user/g' "$PAYMENTS"
+
+echo "✅ Emails ahora son fire-and-forget (no bloquean la respuesta)"
+
+--- FIN: ./fix_email_async.sh ---
+
+--- INICIO: ./fix_pages.sh ---
+#!/bin/bash
+PAGES="$HOME/Documents/proyectos/PlataformadeComprayGestiondeCreditos/frontend/src/pages"
+
+# 1. Login.jsx — correcto
+cat > "$PAGES/Login.jsx" << 'EOF'
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+
+const Login = () => {
+  const { login } = useAuth();
+  const [form, setForm] = useState({ code: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/login', form);
+      login(res.data.token, res.data.user);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-uptc-negro flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <div className="bg-uptc-amarillo w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-uptc-negro font-bold text-2xl">U</span>
+          </div>
+          <h1 className="text-2xl font-bold text-uptc-negro">Créditos UPTC</h1>
+          <p className="text-gray-500 text-sm mt-1">Seccional Sogamoso</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Estudiantil</label>
+            <input type="text" name="code" value={form.code} onChange={handleChange}
+              placeholder="Ej: 202012345"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+              required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <input type="password" name="password" value={form.password} onChange={handleChange}
+              placeholder="••••••••"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+              required />
+          </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+          )}
+          <button type="submit" disabled={loading}
+            className="w-full bg-uptc-negro hover:bg-uptc-gris-oscuro text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60">
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+        <p className="text-center text-xs text-gray-400 mt-6">Solo estudiantes activos registrados en el SIRA</p>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+EOF
+
+# 2. Dashboard.jsx — correcto
+cat > "$PAGES/Dashboard.jsx" << 'EOF'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import StudentLayout from './StudentLayout';
+import api from '../services/api';
+
+const Dashboard = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [saldo, setSaldo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const fetchSaldo = async () => {
+      try {
+        const res = await api.get('/wallet/saldo');
+        setSaldo(res.data.balance);
+      } catch (err) {
+        console.error('Error al obtener saldo:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSaldo();
+  }, [authLoading]);
+
+  if (authLoading) return (
+    <StudentLayout>
+      <div className="flex items-center justify-center h-64 text-gray-500">Cargando...</div>
+    </StudentLayout>
+  );
+
+  return (
+    <StudentLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Dashboard</h1>
+      <p className="text-gray-500 text-sm mb-6">Bienvenido, {user?.name}. Administra tus créditos académicos.</p>
+      <div className="bg-uptc-amarillo rounded-2xl p-6 mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-uptc-negro text-sm font-medium opacity-75 mb-1">Saldo disponible</p>
+          {loading ? (
+            <p className="text-4xl font-bold text-uptc-negro">Cargando...</p>
+          ) : (
+            <p className="text-5xl font-bold text-uptc-negro">{saldo} <span className="text-2xl opacity-75">créditos</span></p>
+          )}
+          <p className="text-uptc-negro text-sm opacity-75 mt-2">Código: {user?.code}</p>
+        </div>
+        <button onClick={() => navigate('/pagos')}
+          className="bg-uptc-negro text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-uptc-gris-oscuro transition-colors flex-shrink-0">
+          + Comprar Más
+        </button>
+      </div>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        {[
+          { path: '/pagos',          icon: '💳', label: 'Comprar',    desc: 'Recargar créditos' },
+          { path: '/transferencias', icon: '↗️', label: 'Transferir', desc: 'Enviar a otro estudiante' },
+          { path: '/historial',      icon: '📋', label: 'Historial',  desc: 'Ver mis transacciones' },
+          { path: '/pqrs',           icon: '🎫', label: 'Soporte',    desc: 'Quejas y solicitudes' },
+        ].map(item => (
+          <button key={item.path} onClick={() => navigate(item.path)}
+            className="bg-white rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow text-left border-l-4 border-uptc-amarillo">
+            <div className="text-3xl mb-2">{item.icon}</div>
+            <h3 className="font-semibold text-uptc-negro">{item.label}</h3>
+            <p className="text-gray-500 text-sm">{item.desc}</p>
+          </button>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl p-6 shadow-sm">
+        <h3 className="font-semibold text-uptc-negro mb-4">Mi cuenta</h3>
+        <div className="space-y-3 text-sm">
+          {[
+            { label: 'Nombre', value: user?.name },
+            { label: 'Código', value: user?.code },
+            { label: 'Rol',    value: user?.role },
+          ].map(row => (
+            <div key={row.label} className="flex justify-between border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+              <span className="text-gray-500">{row.label}</span>
+              <span className="font-medium text-uptc-negro">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </StudentLayout>
+  );
+};
+
+export default Dashboard;
+EOF
+
+# 3. AdminLayout.jsx — simplificado sin rutas inexistentes
+cat > "$PAGES/AdminLayout.jsx" << 'EOF'
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+export default function AdminLayout({ children }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  return (
+    <div className="min-h-screen flex bg-gray-50">
+      <aside className="w-64 bg-uptc-negro flex flex-col flex-shrink-0">
+        <div className="px-5 py-5 border-b border-uptc-gris-oscuro">
+          <div className="flex items-center gap-3">
+            <div className="bg-uptc-amarillo w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+              <span className="text-uptc-negro font-bold text-base">U</span>
+            </div>
+            <div>
+              <p className="text-white font-semibold text-sm leading-tight">UPTC</p>
+              <p className="text-uptc-amarillo text-xs">Admin Panel</p>
+            </div>
+          </div>
+        </div>
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mb-3">Panel de Control</p>
+          <button onClick={() => navigate('/admin')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+              location.pathname === '/admin'
+                ? 'bg-uptc-amarillo text-uptc-negro font-medium'
+                : 'text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white'
+            }`}>
+            <span>📊</span> Dashboard
+          </button>
+          <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mt-5 mb-3">Vista estudiante</p>
+          <button onClick={() => navigate('/dashboard')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white transition-colors text-left">
+            <span>👤</span> Ir al Dashboard
+          </button>
+        </nav>
+        <div className="px-3 py-4 border-t border-uptc-gris-oscuro">
+          <div className="px-3 py-2 mb-2">
+            <p className="text-white text-sm font-medium truncate">{user?.name}</p>
+            <p className="text-uptc-amarillo text-xs">Administrador</p>
+          </div>
+          <button onClick={() => { logout(); navigate('/login'); }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white transition-colors text-left">
+            <span>🚪</span> Cerrar Sesión
+          </button>
+        </div>
+      </aside>
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-end gap-3">
+          <div className="w-8 h-8 rounded-full bg-uptc-amarillo flex items-center justify-center">
+            <span className="text-uptc-negro font-bold text-xs">
+              {user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+            </span>
+          </div>
+          <span className="text-sm text-gray-600 font-medium">Admin</span>
+        </header>
+        <main className="flex-1 p-6 overflow-auto">{children}</main>
+      </div>
+    </div>
+  );
+}
+EOF
+
+echo "✅ Login.jsx, Dashboard.jsx y AdminLayout.jsx corregidos"
+
+--- FIN: ./fix_pages.sh ---
+
+--- INICIO: ./frontend/.env.example ---
+VITE_API_URL=http://localhost:3000
+--- FIN: ./frontend/.env.example ---
+
+--- INICIO: ./frontend/index.html ---
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Créditos UPTC</title>
+    <link rel="manifest" href="/manifest.json" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+--- FIN: ./frontend/index.html ---
+
+--- INICIO: ./frontend/package.json ---
+{
+  "name": "uptc-frontend",
+  "version": "1.0.0",
+  "description": "Frontend PWA para plataforma de créditos académicos",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.17.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.30.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "vite": "^4.4.0"
+  }
+}
+
+--- FIN: ./frontend/package.json ---
+
+--- INICIO: ./frontend/postcss.config.js ---
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+--- FIN: ./frontend/postcss.config.js ---
+
+--- INICIO: ./frontend/public/manifest.json ---
+{
+  "name": "Plataforma de Créditos UPTC",
+  "short_name": "Créditos UPTC",
+  "description": "Plataforma de compra y gestión de créditos académicos",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#FFC300",
+  "background_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
+
+--- FIN: ./frontend/public/manifest.json ---
+
+--- INICIO: ./frontend/src/App.jsx ---
+import { AuthProvider } from './context/AuthContext';
+import AppRouter from './routes/AppRouter';
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  );
+};
+
+export default App;
+--- FIN: ./frontend/src/App.jsx ---
+
+--- INICIO: ./frontend/src/context/AuthContext.jsx ---
+import { createContext, useContext, useState, useEffect } from 'react';
+
+const AuthContext = createContext(null);
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  }, []);
+
+  const login = (tokenData, userData) => {
+    localStorage.setItem('token', tokenData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    setToken(tokenData);
+    setUser(userData);
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, logout, loading, isAuthenticated: !!token }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error('useAuth debe usarse dentro de AuthProvider');
+  return context;
+};
+--- FIN: ./frontend/src/context/AuthContext.jsx ---
+
+--- INICIO: ./frontend/src/index.css ---
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  background-color: #f5f5f5;
+}
+
+:root {
+  --uptc-amarillo: #C8A400;
+  --uptc-negro: #1A1A1A;
+  --uptc-gris: #F5F4EF;
+}
+--- FIN: ./frontend/src/index.css ---
+
+--- INICIO: ./frontend/src/main.jsx ---
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App'
+import './index.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+)
+--- FIN: ./frontend/src/main.jsx ---
+
+--- INICIO: ./frontend/src/pages/Admin.jsx ---
+import { useState, useEffect } from "react";
+import AdminLayout from "./AdminLayout";
+import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
+
+const colorEstado = (estado) => ({
+  ABIERTO:     "bg-yellow-100 text-yellow-700",
+  EN_REVISION: "bg-blue-100 text-blue-700",
+  RESUELTO:    "bg-green-100 text-green-700",
+  CERRADO:     "bg-gray-100 text-gray-600",
+}[estado] || "bg-gray-100 text-gray-600");
+
+export default function Admin() {
+  const { loading: authLoading } = useAuth();
+  const [metricas, setMetricas] = useState(null);
+  const [usuarios, setUsuarios] = useState([]);
+  const [transacciones, setTransacciones] = useState([]);
+  const [tickets, setTickets] = useState([]);
+  const [tab, setTab] = useState("metricas");
+
+  // Modal responder ticket
+  const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
+  const [respuesta, setRespuesta] = useState({ message: "", status: "EN_REVISION" });
+  const [enviando, setEnviando] = useState(false);
+  const [errorRespuesta, setErrorRespuesta] = useState("");
+
+  useEffect(() => {
+    if (authLoading) return;
+    api.get("/admin/metricas").then(res => setMetricas(res.data.metricas)).catch(() => {});
+    api.get("/admin/usuarios").then(res => setUsuarios(res.data.usuarios)).catch(() => {});
+    api.get("/admin/transacciones").then(res => setTransacciones(res.data.transacciones)).catch(() => {});
+    api.get("/pqrs/admin/todos").then(res => setTickets(res.data.tickets)).catch(() => {});
+  }, [authLoading]);
+
+  const toggleUsuario = async (id) => {
+    try {
+      await api.patch(`/admin/usuarios/${id}/toggle`);
+      const res = await api.get("/admin/usuarios");
+      setUsuarios(res.data.usuarios);
+    } catch {}
+  };
+
+  const handleResponder = async () => {
+    if (!respuesta.message) return setErrorRespuesta("Escribe un mensaje");
+    setEnviando(true); setErrorRespuesta("");
+    try {
+      await api.patch(`/pqrs/${ticketSeleccionado.id}/responder`, respuesta);
+      const res = await api.get("/pqrs/admin/todos");
+      setTickets(res.data.tickets);
+      setTicketSeleccionado(null);
+      setRespuesta({ message: "", status: "EN_REVISION" });
+    } catch (err) {
+      setErrorRespuesta(err.response?.data?.error || "Error al responder");
+    } finally { setEnviando(false); }
+  };
+
+  const tabLabels = { metricas: "Métricas", usuarios: "Usuarios", transacciones: "Transacciones", pqrs: `PQRS ${tickets.filter(t => t.status === 'ABIERTO').length > 0 ? `(${tickets.filter(t => t.status === 'ABIERTO').length})` : ''}` };
+
+  if (authLoading) return <AdminLayout><div className="flex items-center justify-center h-64 text-gray-500">Cargando...</div></AdminLayout>;
+
+  return (
+    <AdminLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Panel de Administración</h1>
+      <p className="text-gray-500 text-sm mb-6">Monitorea y gestiona todo el sistema de créditos académicos UPTC</p>
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {["metricas", "usuarios", "transacciones", "pqrs"].map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            className={`px-4 py-2 rounded-lg font-medium transition text-sm ${
+              tab === t
+                ? "bg-uptc-amarillo text-uptc-negro"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-uptc-amarillo"
+            }`}>
+            {tabLabels[t]}
+          </button>
+        ))}
+      </div>
+
+      {/* Métricas */}
+      {tab === "metricas" && metricas && (
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { label: "Total Usuarios",          valor: metricas.totalUsuarios },
+            { label: "Total Transacciones",     valor: metricas.totalTransacciones },
+            { label: "Transacciones Hoy",       valor: metricas.transaccionesHoy },
+            { label: "Créditos en Circulación", valor: metricas.creditosEnCirculacion },
+          ].map(m => (
+            <div key={m.label} className="bg-white rounded-xl shadow-sm p-6 border-t-4 border-uptc-amarillo">
+              <p className="text-sm text-gray-500">{m.label}</p>
+              <p className="text-3xl font-bold text-uptc-negro mt-1">{m.valor}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Usuarios */}
+      {tab === "usuarios" && (
+        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-uptc-negro text-uptc-amarillo uppercase text-xs">
+              <tr>
+                <th className="px-4 py-3 text-left">Nombre</th>
+                <th className="px-4 py-3 text-left">Código</th>
+                <th className="px-4 py-3 text-left">Saldo</th>
+                <th className="px-4 py-3 text-left">Estado</th>
+                <th className="px-4 py-3 text-left">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {usuarios.map(u => (
+                <tr key={u.id} className="hover:bg-uptc-gris-claro transition-colors">
+                  <td className="px-4 py-3 font-medium">{u.name}</td>
+                  <td className="px-4 py-3 text-gray-500">{u.code}</td>
+                  <td className="px-4 py-3">{u.wallet?.balance ?? 0} cr.</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.isActive ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {u.isActive ? "Activo" : "Inactivo"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button onClick={() => toggleUsuario(u.id)}
+                      className="text-xs text-uptc-amarillo-hover hover:underline font-medium">
+                      {u.isActive ? "Desactivar" : "Activar"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Transacciones */}
+      {tab === "transacciones" && (
+        <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-uptc-negro text-uptc-amarillo uppercase text-xs">
+              <tr>
+                <th className="px-4 py-3 text-left">Usuario</th>
+                <th className="px-4 py-3 text-left">Créditos</th>
+                <th className="px-4 py-3 text-left">Método</th>
+                <th className="px-4 py-3 text-left">Estado</th>
+                <th className="px-4 py-3 text-left">Fecha</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {transacciones.map(t => (
+                <tr key={t.id} className="hover:bg-uptc-gris-claro transition-colors">
+                  <td className="px-4 py-3 font-medium">{t.user?.name}</td>
+                  <td className="px-4 py-3">{t.credits}</td>
+                  <td className="px-4 py-3 text-gray-500">{t.method}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      t.status === "APROBADO" ? "bg-green-100 text-green-700" :
+                      t.status === "PENDIENTE"  ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"
+                    }`}>{t.status}</span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{new Date(t.createdAt).toLocaleDateString("es-CO")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* PQRS */}
+      {tab === "pqrs" && (
+        <div className="space-y-3">
+          {tickets.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">No hay tickets</div>
+          ) : tickets.map(ticket => (
+            <button key={ticket.id} onClick={() => { setTicketSeleccionado(ticket); setRespuesta({ message: "", status: ticket.status === 'ABIERTO' ? 'EN_REVISION' : ticket.status }); }}
+              className="w-full bg-white rounded-xl shadow-sm p-4 border-l-4 border-uptc-amarillo text-left hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-1">
+                <div>
+                  <span className="text-xs font-mono text-gray-400">{ticket.ticketNumber}</span>
+                  <span className="text-xs text-gray-500 ml-2">· {ticket.user?.name} ({ticket.user?.code})</span>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${colorEstado(ticket.status)}`}>{ticket.status}</span>
+              </div>
+              <p className="font-medium text-uptc-negro text-sm">{ticket.title}</p>
+              <p className="text-xs text-gray-500 mt-1 line-clamp-1">{ticket.description}</p>
+              <div className="flex justify-between mt-2">
+                <span className="text-xs text-gray-400">{new Date(ticket.createdAt).toLocaleDateString("es-CO")}</span>
+                {ticket.updates?.length > 0 && <span className="text-xs text-blue-600">{ticket.updates.length} respuesta(s)</span>}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Modal responder ticket */}
+      {ticketSeleccionado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
+          onClick={e => e.target === e.currentTarget && setTicketSeleccionado(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <span className="text-xs font-mono text-gray-400">{ticketSeleccionado.ticketNumber}</span>
+                <h2 className="font-semibold text-uptc-negro mt-1">{ticketSeleccionado.title}</h2>
+                <p className="text-xs text-gray-500 mt-0.5">{ticketSeleccionado.user?.name} · {ticketSeleccionado.user?.code}</p>
+              </div>
+              <button onClick={() => setTicketSeleccionado(null)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Descripción */}
+              <div className="bg-uptc-gris-claro rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Solicitud del estudiante</p>
+                <p className="text-sm text-gray-800">{ticketSeleccionado.description}</p>
+              </div>
+
+              {/* Historial de respuestas */}
+              {ticketSeleccionado.updates?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Historial</p>
+                  {ticketSeleccionado.updates.map((u, i) => (
+                    <div key={i} className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+                      <div className="flex justify-between mb-1">
+                        <span className="text-xs font-medium text-blue-700">Soporte UPTC</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${colorEstado(u.status)}`}>{u.status}</span>
+                      </div>
+                      <p className="text-sm text-gray-800">{u.message}</p>
+                      <p className="text-xs text-gray-400 mt-1">{new Date(u.createdAt).toLocaleDateString("es-CO", { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Formulario respuesta */}
+              {ticketSeleccionado.status !== 'CERRADO' && (
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-sm font-medium text-uptc-negro mb-3">Responder</p>
+                  <select value={respuesta.status} onChange={e => setRespuesta({ ...respuesta, status: e.target.value })}
+                    className="w-full border border-gray-300 rounded-lg p-2.5 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo">
+                    <option value="EN_REVISION">En revisión</option>
+                    <option value="RESUELTO">Resuelto</option>
+                    <option value="CERRADO">Cerrado</option>
+                  </select>
+                  <textarea value={respuesta.message} onChange={e => setRespuesta({ ...respuesta, message: e.target.value })}
+                    placeholder="Escribe tu respuesta al estudiante..."
+                    rows={3} className="w-full border border-gray-300 rounded-lg p-3 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo" />
+                  {errorRespuesta && <p className="text-red-500 text-xs mb-2">{errorRespuesta}</p>}
+                  <button onClick={handleResponder} disabled={enviando}
+                    className="w-full bg-uptc-amarillo hover:bg-uptc-amarillo-hover text-uptc-negro py-2.5 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors">
+                    {enviando ? "Enviando..." : "Enviar respuesta"}
+                  </button>
+                </div>
+              )}
+              {ticketSeleccionado.status === 'CERRADO' && (
+                <div className="bg-gray-50 rounded-xl p-3 text-center text-sm text-gray-500">Ticket cerrado</div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100">
+              <button onClick={() => setTicketSeleccionado(null)}
+                className="w-full border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm hover:bg-gray-50 transition-colors">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
+  );
+}
+--- FIN: ./frontend/src/pages/Admin.jsx ---
+
+--- INICIO: ./frontend/src/pages/AdminLayout.jsx ---
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const navLinks = [
+  { path: '/dashboard',      label: 'Dashboard',        icon: '📊' },
+  { path: '/pagos',          label: 'Comprar Créditos', icon: '💳' },
+  { path: '/historial',      label: 'Historial',        icon: '📋' },
+  { path: '/transferencias', label: 'Transferir Saldo', icon: '↗️' },
+  { path: '/pqrs',           label: 'Soporte / PQRS',   icon: '🎫' },
+];
+
+export default function StudentLayout({ children }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleNav = (path) => { navigate(path); setSidebarOpen(false); };
+
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-uptc-gris-oscuro">
+        <div className="flex items-center gap-3">
+          <div className="bg-uptc-amarillo w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-uptc-negro font-bold text-base">U</span>
+          </div>
+          <div>
+            <p className="text-white font-semibold text-sm leading-tight">UPTC</p>
+            <p className="text-gray-500 text-xs">Créditos Académicos</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav links */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mb-3">Menú principal</p>
+        {navLinks.map(link => {
+          const active = location.pathname === link.path;
+          return (
+            <button key={link.path} onClick={() => handleNav(link.path)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                active
+                  ? 'bg-uptc-amarillo text-uptc-negro font-medium'
+                  : 'text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white'
+              }`}>
+              <span className="text-base">{link.icon}</span>
+              {link.label}
+            </button>
+          );
+        })}
+
+        {user?.role === 'ADMIN' && (
+          <>
+            <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mt-5 mb-3">Administración</p>
+            <button onClick={() => handleNav('/admin')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                location.pathname === '/admin'
+                  ? 'bg-uptc-amarillo text-uptc-negro font-medium'
+                  : 'text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white'
+              }`}>
+              <span className="text-base">⚙️</span>
+              Panel Admin
+            </button>
+          </>
+        )}
+      </nav>
+
+      {/* Usuario */}
+      <div className="px-3 py-4 border-t border-uptc-gris-oscuro">
+        <div className="px-3 py-2 mb-2">
+          <p className="text-white text-sm font-medium truncate">{user?.name}</p>
+          <p className="text-gray-500 text-xs">{user?.code}</p>
+        </div>
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white transition-colors text-left">
+          <span className="text-base">🚪</span>
+          Cerrar Sesión
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen flex bg-uptc-gris-claro">
+
+      {/* Sidebar desktop — oculto en móvil */}
+      <aside className="hidden md:flex w-64 bg-uptc-negro flex-col flex-shrink-0">
+        <SidebarContent />
+      </aside>
+
+      {/* Overlay móvil */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* Fondo oscuro */}
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
+          {/* Drawer */}
+          <aside className="absolute left-0 top-0 h-full w-64 bg-uptc-negro flex flex-col z-50">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar */}
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          {/* Botón hamburguesa — solo en móvil */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="space-y-1.5">
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+            </div>
+          </button>
+
+          {/* Logo en móvil */}
+          <div className="md:hidden flex items-center gap-2">
+            <div className="bg-uptc-amarillo w-7 h-7 rounded-md flex items-center justify-center">
+              <span className="text-uptc-negro font-bold text-xs">U</span>
+            </div>
+            <span className="text-uptc-negro font-semibold text-sm">Créditos UPTC</span>
+          </div>
+
+          <div className="hidden md:block" /> {/* spacer desktop */}
+
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-uptc-amarillo flex items-center justify-center">
+              <span className="text-uptc-negro font-bold text-xs">
+                {user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+              </span>
+            </div>
+            <span className="text-sm text-gray-600 font-medium hidden sm:block">{user?.name?.split(' ')[0]}</span>
+          </div>
+        </header>
+
+        {/* Página */}
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+--- FIN: ./frontend/src/pages/AdminLayout.jsx ---
+
+--- INICIO: ./frontend/src/pages/Dashboard.jsx ---
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import StudentLayout from './StudentLayout';
+import api from '../services/api';
+
+const Dashboard = () => {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const [saldo, setSaldo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const fetchSaldo = async () => {
+      try {
+        const res = await api.get('/wallet/saldo');
+        setSaldo(res.data.balance);
+      } catch (err) {
+        console.error('Error al obtener saldo:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSaldo();
+  }, [authLoading]);
+
+  if (authLoading) return (
+    <StudentLayout>
+      <div className="flex items-center justify-center h-64 text-gray-500">Cargando...</div>
+    </StudentLayout>
+  );
+
+  return (
+    <StudentLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Dashboard</h1>
+      <p className="text-gray-500 text-sm mb-6">Bienvenido, {user?.name?.split(' ')[0]}. Administra tus créditos.</p>
+
+      {/* Tarjeta saldo — stack en móvil, row en desktop */}
+      <div className="bg-uptc-amarillo rounded-2xl p-5 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-uptc-negro text-sm font-medium opacity-75 mb-1">Saldo disponible</p>
+            {loading ? (
+              <p className="text-4xl font-bold text-uptc-negro">Cargando...</p>
+            ) : (
+              <p className="text-5xl font-bold text-uptc-negro">
+                {saldo} <span className="text-2xl opacity-75">créditos</span>
+              </p>
+            )}
+            <p className="text-uptc-negro text-sm opacity-75 mt-2">Código: {user?.code}</p>
+          </div>
+          <button onClick={() => navigate('/pagos')}
+            className="bg-uptc-negro text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-uptc-gris-oscuro transition-colors self-start sm:self-auto flex-shrink-0">
+            + Comprar Más
+          </button>
+        </div>
+      </div>
+
+      {/* Acciones — 2 columnas siempre, texto truncado en móvil */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        {[
+          { path: '/pagos',          icon: '💳', label: 'Comprar',    desc: 'Recargar créditos' },
+          { path: '/transferencias', icon: '↗️', label: 'Transferir', desc: 'Enviar créditos' },
+          { path: '/historial',      icon: '📋', label: 'Historial',  desc: 'Ver transacciones' },
+          { path: '/pqrs',           icon: '🎫', label: 'Soporte',    desc: 'Quejas y solicitudes' },
+        ].map(item => (
+          <button key={item.path} onClick={() => navigate(item.path)}
+            className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow text-left border-l-4 border-uptc-amarillo">
+            <div className="text-2xl mb-2">{item.icon}</div>
+            <h3 className="font-semibold text-uptc-negro text-sm">{item.label}</h3>
+            <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{item.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      {/* Info cuenta */}
+      <div className="bg-white rounded-xl p-5 shadow-sm">
+        <h3 className="font-semibold text-uptc-negro mb-4">Mi cuenta</h3>
+        <div className="space-y-3 text-sm">
+          {[
+            { label: 'Nombre', value: user?.name },
+            { label: 'Código', value: user?.code },
+            { label: 'Rol',    value: user?.role },
+          ].map(row => (
+            <div key={row.label} className="flex justify-between border-b border-gray-100 pb-2 last:border-0 last:pb-0">
+              <span className="text-gray-500">{row.label}</span>
+              <span className="font-medium text-uptc-negro text-right">{row.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </StudentLayout>
+  );
+};
+
+export default Dashboard;
+--- FIN: ./frontend/src/pages/Dashboard.jsx ---
+
+--- INICIO: ./frontend/src/pages/Historial.jsx ---
+import { useState, useEffect } from 'react';
+import StudentLayout from './StudentLayout';
+import api from '../services/api';
+
+const tipoLabel = {
+  TRANSFER_SENT:     { label: 'Transferencia enviada',  color: 'text-red-600',              icon: '↗️' },
+  TRANSFER_RECEIVED: { label: 'Transferencia recibida', color: 'text-green-600',             icon: '↙️' },
+  PURCHASE:          { label: 'Compra de créditos',     color: 'text-uptc-amarillo-hover',   icon: '💳' },
+  CONSUMPTION:       { label: 'Consumo restaurante',    color: 'text-orange-600',            icon: '🍽️' },
+};
+
+const Historial = () => {
+  const [transacciones, setTransacciones] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filtros, setFiltros] = useState({ tipo: '', fechaInicio: '', fechaFin: '' });
+  const [pagina, setPagina] = useState(1);
+  const [totalPaginas, setTotalPaginas] = useState(1);
+
+  const fetchHistorial = async (page = 1) => {
+    setLoading(true);
+    try {
+      const params = { page, limit: 10, ...filtros };
+      Object.keys(params).forEach(k => !params[k] && delete params[k]);
+      const res = await api.get('/wallet/historial', { params });
+      setTransacciones(res.data.transactions);
+      setTotalPaginas(res.data.totalPages);
+      setPagina(res.data.page);
+    } catch (err) {
+      console.error('Error al obtener historial:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchHistorial(); }, []);
+
+  const formatFecha = (fecha) =>
+    new Date(fecha).toLocaleDateString('es-CO', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+
+  return (
+    <StudentLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Historial de Transferencias</h1>
+      <p className="text-gray-500 text-sm mb-6">Consulta todas tus transacciones realizadas</p>
+
+      {/* Filtros */}
+      <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+        <form onSubmit={e => { e.preventDefault(); fetchHistorial(1); }} className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Tipo</label>
+            <select
+              value={filtros.tipo}
+              onChange={e => setFiltros({ ...filtros, tipo: e.target.value })}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+            >
+              <option value="">Todos</option>
+              <option value="TRANSFER_SENT">Enviadas</option>
+              <option value="TRANSFER_RECEIVED">Recibidas</option>
+              <option value="PURCHASE">Compras</option>
+              <option value="CONSUMPTION">Consumos</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Desde</label>
+            <input type="date" value={filtros.fechaInicio}
+              onChange={e => setFiltros({ ...filtros, fechaInicio: e.target.value })}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-500 mb-1">Hasta</label>
+            <input type="date" value={filtros.fechaFin}
+              onChange={e => setFiltros({ ...filtros, fechaFin: e.target.value })}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+            />
+          </div>
+          <button type="submit"
+            className="bg-uptc-negro text-white px-4 py-2 rounded-lg text-sm hover:bg-uptc-gris-oscuro transition-colors">
+            Filtrar
+          </button>
+          <button type="button"
+            onClick={() => { setFiltros({ tipo: '', fechaInicio: '', fechaFin: '' }); fetchHistorial(1); }}
+            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-300 transition-colors">
+            Limpiar
+          </button>
+        </form>
+      </div>
+
+      {/* Lista */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-4">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Cargando transacciones...</div>
+        ) : transacciones.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No hay transacciones para mostrar</div>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {transacciones.map(tx => {
+              const tipo = tipoLabel[tx.type] || { label: tx.type, color: 'text-gray-600', icon: '•' };
+              const esSalida = tx.type === 'TRANSFER_SENT' || tx.type === 'CONSUMPTION';
+              return (
+                <div key={tx.id} className="px-6 py-4 flex justify-between items-center hover:bg-uptc-gris-claro transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">{tipo.icon}</span>
+                    <div>
+                      <p className={`font-medium text-sm ${tipo.color}`}>{tipo.label}</p>
+                      <p className="text-gray-500 text-xs">{tx.description}</p>
+                      <p className="text-gray-400 text-xs">{formatFecha(tx.createdAt)}</p>
+                    </div>
+                  </div>
+                  <span className={`font-bold text-lg ${esSalida ? 'text-red-600' : 'text-green-600'}`}>
+                    {esSalida ? '-' : '+'}{tx.amount}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Paginación */}
+      {totalPaginas > 1 && (
+        <div className="flex justify-center gap-2">
+          <button onClick={() => fetchHistorial(pagina - 1)} disabled={pagina === 1}
+            className="px-4 py-2 bg-white rounded-lg shadow-sm text-sm disabled:opacity-40 hover:bg-gray-50">
+            ← Anterior
+          </button>
+          <span className="px-4 py-2 bg-uptc-amarillo text-uptc-negro rounded-lg shadow-sm text-sm font-medium">
+            {pagina} / {totalPaginas}
+          </span>
+          <button onClick={() => fetchHistorial(pagina + 1)} disabled={pagina === totalPaginas}
+            className="px-4 py-2 bg-white rounded-lg shadow-sm text-sm disabled:opacity-40 hover:bg-gray-50">
+            Siguiente →
+          </button>
+        </div>
+      )}
+    </StudentLayout>
+  );
+};
+
+export default Historial;
+--- FIN: ./frontend/src/pages/Historial.jsx ---
+
+--- INICIO: ./frontend/src/pages/Login.jsx ---
+import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
+
+const Login = () => {
+  const { login } = useAuth();
+  const [form, setForm] = useState({ code: '', password: '' });
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/login', form);
+      login(res.data.token, res.data.user);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-uptc-negro flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        <div className="text-center mb-8">
+          <div className="bg-uptc-amarillo w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-uptc-negro font-bold text-2xl">U</span>
+          </div>
+          <h1 className="text-2xl font-bold text-uptc-negro">Créditos UPTC</h1>
+          <p className="text-gray-500 text-sm mt-1">Seccional Sogamoso</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Estudiantil</label>
+            <input type="text" name="code" value={form.code} onChange={handleChange}
+              placeholder="Ej: 202012345"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+              required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <input type="password" name="password" value={form.password} onChange={handleChange}
+              placeholder="••••••••"
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+              required />
+          </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">{error}</div>
+          )}
+          <button type="submit" disabled={loading}
+            className="w-full bg-uptc-negro hover:bg-uptc-gris-oscuro text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-60">
+            {loading ? 'Ingresando...' : 'Ingresar'}
+          </button>
+        </form>
+        <p className="text-center text-xs text-gray-400 mt-6">Solo estudiantes activos registrados en el SIRA</p>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+--- FIN: ./frontend/src/pages/Login.jsx ---
+
+--- INICIO: ./frontend/src/pages/Pagos.jsx ---
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import StudentLayout from "./StudentLayout";
+import api from "../services/api";
+
+export default function Pagos() {
+  const { loading: authLoading } = useAuth();
+  const [opciones, setOpciones] = useState([]);
+  const [seleccionado, setSeleccionado] = useState(null);
+  const [metodo, setMetodo] = useState("NEQUI");
+  const [cargando, setCargando] = useState(false);
+  const [resultado, setResultado] = useState(null);
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authLoading) return;
+    api.get("/payments/opciones").then(res => setOpciones(res.data.opciones)).catch(() => {});
+  }, [authLoading]);
+
+  const handleCompra = async () => {
+    if (!seleccionado) return setError("Selecciona una cantidad de créditos");
+    setCargando(true);
+    setError("");
+    setResultado(null);
+    try {
+      const res = await api.post("/payments/iniciar", { cantidadCreditos: seleccionado, metodo });
+      setResultado(res.data.datos);
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al procesar el pago");
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  if (authLoading) return (
+    <StudentLayout>
+      <div className="flex items-center justify-center h-64 text-gray-500">Cargando...</div>
+    </StudentLayout>
+  );
+
+  return (
+    <StudentLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Comprar Créditos</h1>
+      <p className="text-gray-500 text-sm mb-6">Selecciona la cantidad y el método de pago</p>
+
+      <div className="max-w-lg">
+        {resultado ? (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+            <div className="text-4xl mb-3">✅</div>
+            <h2 className="text-xl font-bold text-green-700 mb-2">¡Pago exitoso!</h2>
+            <p className="text-gray-600">Compraste <strong>{resultado.creditosComprados} crédito(s)</strong></p>
+            <p className="text-gray-600">Pagaste <strong>${resultado.precioPagado?.toLocaleString("es-CO")}</strong> vía {resultado.metodo}</p>
+            <p className="text-gray-600 mt-2">Nuevo saldo: <strong>{resultado.nuevoSaldo} créditos</strong></p>
+            <button onClick={() => navigate("/dashboard")}
+              className="mt-4 bg-uptc-negro text-white px-6 py-2 rounded-lg hover:bg-uptc-gris-oscuro transition-colors">
+              Ir al Dashboard
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
+              <h2 className="font-semibold text-uptc-negro mb-3">Selecciona cantidad</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {opciones.map(op => (
+                  <button key={op.creditos} onClick={() => setSeleccionado(op.creditos)}
+                    className={`border-2 rounded-xl p-4 text-center transition ${
+                      seleccionado === op.creditos
+                        ? "border-uptc-amarillo bg-yellow-50"
+                        : "border-gray-200 hover:border-uptc-amarillo"
+                    }`}>
+                    <div className="text-2xl font-bold text-uptc-negro">{op.creditos}</div>
+                    <div className="text-sm text-gray-500">crédito(s)</div>
+                    <div className="text-sm font-semibold text-uptc-amarillo-hover mt-1">
+                      ${op.precio?.toLocaleString("es-CO")}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-4">
+              <h2 className="font-semibold text-uptc-negro mb-3">Método de pago</h2>
+              <div className="flex gap-3">
+                {["NEQUI", "PSE", "TARJETA"].map(m => (
+                  <button key={m} onClick={() => setMetodo(m)}
+                    className={`flex-1 border-2 rounded-xl py-3 font-medium transition ${
+                      metodo === m
+                        ? "border-uptc-amarillo bg-yellow-50 text-uptc-negro"
+                        : "border-gray-200 text-gray-600 hover:border-uptc-amarillo"
+                    }`}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+
+            <button onClick={handleCompra} disabled={cargando}
+              className="w-full bg-uptc-amarillo hover:bg-uptc-amarillo-hover text-uptc-negro py-4 rounded-xl font-semibold text-lg disabled:opacity-50 transition-colors">
+              {cargando ? "Procesando pago..." : `Pagar${seleccionado ? ` ${seleccionado} crédito(s)` : ""}`}
+            </button>
+          </>
+        )}
+      </div>
+    </StudentLayout>
+  );
+}
+--- FIN: ./frontend/src/pages/Pagos.jsx ---
+
+--- INICIO: ./frontend/src/pages/PQRS.jsx ---
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import StudentLayout from "./StudentLayout";
+import api from "../services/api";
+
+const colorEstado = (estado) => ({
+  ABIERTO:     "bg-yellow-100 text-yellow-700",
+  EN_REVISION: "bg-blue-100 text-blue-700",
+  RESUELTO:    "bg-green-100 text-green-700",
+  CERRADO:     "bg-gray-100 text-gray-600",
+}[estado] || "bg-gray-100 text-gray-600");
+
+const iconoEstado = (estado) => ({
+  ABIERTO: "🟡", EN_REVISION: "🔵", RESUELTO: "✅", CERRADO: "⬛"
+}[estado] || "⬜");
+
+export default function PQRS() {
+  const { loading: authLoading } = useAuth();
+  const [tickets, setTickets] = useState([]);
+  const [mostrarFormulario, setMostrarFormulario] = useState(false);
+  const [ticketSeleccionado, setTicketSeleccionado] = useState(null);
+  const [form, setForm] = useState({ type: "QUEJA", title: "", description: "" });
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
+
+  const cargarTickets = async () => {
+    try {
+      const res = await api.get("/pqrs");
+      setTickets(res.data.tickets);
+    } catch {}
+  };
+
+  useEffect(() => { if (!authLoading) cargarTickets(); }, [authLoading]);
+
+  const handleSubmit = async () => {
+    if (!form.title || !form.description) return setError("Completa todos los campos");
+    setCargando(true); setError("");
+    try {
+      await api.post("/pqrs", form);
+      setForm({ type: "QUEJA", title: "", description: "" });
+      setMostrarFormulario(false);
+      cargarTickets();
+    } catch (err) {
+      setError(err.response?.data?.error || "Error al crear el ticket");
+    } finally { setCargando(false); }
+  };
+
+  const abrirTicket = async (ticket) => {
+    try {
+      const res = await api.get(`/pqrs/${ticket.id}`);
+      setTicketSeleccionado(res.data.ticket);
+    } catch { setTicketSeleccionado(ticket); }
+  };
+
+  if (authLoading) return <StudentLayout><div className="flex items-center justify-center h-64 text-gray-500">Cargando...</div></StudentLayout>;
+
+  return (
+    <StudentLayout>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Soporte / PQRS</h1>
+          <p className="text-gray-500 text-sm">Gestiona tus solicitudes y quejas</p>
+        </div>
+        <button onClick={() => setMostrarFormulario(!mostrarFormulario)}
+          className="bg-uptc-amarillo text-uptc-negro px-4 py-2 rounded-lg text-sm font-medium hover:bg-uptc-amarillo-hover transition-colors">
+          + Nuevo ticket
+        </button>
+      </div>
+
+      {mostrarFormulario && (
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border-t-4 border-uptc-amarillo max-w-lg">
+          <h2 className="font-semibold text-uptc-negro mb-4">Nuevo ticket</h2>
+          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo">
+            <option value="PETICION">Petición</option>
+            <option value="QUEJA">Queja</option>
+            <option value="RECLAMO">Reclamo</option>
+            <option value="SUGERENCIA">Sugerencia</option>
+          </select>
+          <input type="text" placeholder="Título" value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo" />
+          <textarea placeholder="Describe tu situación..." value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            rows={4} className="w-full border border-gray-300 rounded-lg p-3 mb-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo" />
+          {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
+          <div className="flex gap-3">
+            <button onClick={handleSubmit} disabled={cargando}
+              className="flex-1 bg-uptc-amarillo hover:bg-uptc-amarillo-hover text-uptc-negro py-3 rounded-lg font-medium disabled:opacity-50 transition-colors">
+              {cargando ? "Enviando..." : "Enviar ticket"}
+            </button>
+            <button onClick={() => setMostrarFormulario(false)}
+              className="px-4 py-3 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-3 max-w-lg">
+        {tickets.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-sm p-8 text-center text-gray-400">No tienes tickets abiertos</div>
+        ) : tickets.map(ticket => (
+          <button key={ticket.id} onClick={() => abrirTicket(ticket)}
+            className="w-full bg-white rounded-xl shadow-sm p-4 border-l-4 border-uptc-amarillo text-left hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-2">
+              <span className="text-xs font-mono text-gray-400">{ticket.ticketNumber}</span>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${colorEstado(ticket.status)}`}>
+                {iconoEstado(ticket.status)} {ticket.status}
+              </span>
+            </div>
+            <p className="font-medium text-uptc-negro">{ticket.title}</p>
+            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{ticket.description}</p>
+            <div className="flex justify-between items-center mt-2">
+              <p className="text-xs text-gray-400">{new Date(ticket.createdAt).toLocaleDateString("es-CO")}</p>
+              {ticket.updates?.length > 0 && (
+                <span className="text-xs text-blue-600 font-medium">{ticket.updates.length} respuesta(s)</span>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* Modal detalle ticket */}
+      {ticketSeleccionado && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50"
+          onClick={e => e.target === e.currentTarget && setTicketSeleccionado(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col">
+            {/* Header modal */}
+            <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+              <div>
+                <span className="text-xs font-mono text-gray-400">{ticketSeleccionado.ticketNumber}</span>
+                <h2 className="font-semibold text-uptc-negro mt-1">{ticketSeleccionado.title}</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`text-xs px-2 py-1 rounded-full font-medium ${colorEstado(ticketSeleccionado.status)}`}>
+                  {ticketSeleccionado.status}
+                </span>
+                <button onClick={() => setTicketSeleccionado(null)}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none ml-2">×</button>
+              </div>
+            </div>
+
+            {/* Contenido scrolleable */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              {/* Descripción original */}
+              <div className="bg-uptc-gris-claro rounded-xl p-4">
+                <p className="text-xs text-gray-500 mb-1">Tu solicitud</p>
+                <p className="text-sm text-gray-800">{ticketSeleccionado.description}</p>
+                <p className="text-xs text-gray-400 mt-2">{new Date(ticketSeleccionado.createdAt).toLocaleDateString("es-CO", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+
+              {/* Respuestas del admin */}
+              {ticketSeleccionado.updates?.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium">Respuestas</p>
+                  {ticketSeleccionado.updates.map((update, i) => (
+                    <div key={i} className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-medium text-blue-700">👤 Soporte UPTC</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorEstado(update.status)}`}>
+                          → {update.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-800">{update.message}</p>
+                      <p className="text-xs text-gray-400 mt-2">{new Date(update.createdAt).toLocaleDateString("es-CO", { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-gray-400 text-sm">
+                  {ticketSeleccionado.status === 'ABIERTO' ? '⏳ Tu ticket está en espera de revisión' : 'Sin respuestas aún'}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100">
+              <button onClick={() => setTicketSeleccionado(null)}
+                className="w-full bg-uptc-negro text-white py-2.5 rounded-lg text-sm font-medium hover:bg-uptc-gris-oscuro transition-colors">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </StudentLayout>
+  );
+}
+--- FIN: ./frontend/src/pages/PQRS.jsx ---
+
+--- INICIO: ./frontend/src/pages/StudentLayout.jsx ---
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+const navLinks = [
+  { path: '/dashboard',      label: 'Dashboard',        icon: '📊' },
+  { path: '/pagos',          label: 'Comprar Créditos', icon: '💳' },
+  { path: '/historial',      label: 'Historial',        icon: '📋' },
+  { path: '/transferencias', label: 'Transferir Saldo', icon: '↗️' },
+  { path: '/pqrs',           label: 'Soporte / PQRS',   icon: '🎫' },
+];
+
+export default function StudentLayout({ children }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleNav = (path) => { navigate(path); setSidebarOpen(false); };
+
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="px-5 py-5 border-b border-uptc-gris-oscuro">
+        <div className="flex items-center gap-3">
+          <div className="bg-uptc-amarillo w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0">
+            <span className="text-uptc-negro font-bold text-base">U</span>
+          </div>
+          <div>
+            <p className="text-white font-semibold text-sm leading-tight">UPTC</p>
+            <p className="text-gray-500 text-xs">Créditos Académicos</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav links */}
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mb-3">Menú principal</p>
+        {navLinks.map(link => {
+          const active = location.pathname === link.path;
+          return (
+            <button key={link.path} onClick={() => handleNav(link.path)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                active
+                  ? 'bg-uptc-amarillo text-uptc-negro font-medium'
+                  : 'text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white'
+              }`}>
+              <span className="text-base">{link.icon}</span>
+              {link.label}
+            </button>
+          );
+        })}
+
+        {user?.role === 'ADMIN' && (
+          <>
+            <p className="text-gray-600 text-xs uppercase tracking-wider px-2 mt-5 mb-3">Administración</p>
+            <button onClick={() => handleNav('/admin')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors text-left ${
+                location.pathname === '/admin'
+                  ? 'bg-uptc-amarillo text-uptc-negro font-medium'
+                  : 'text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white'
+              }`}>
+              <span className="text-base">⚙️</span>
+              Panel Admin
+            </button>
+          </>
+        )}
+      </nav>
+
+      {/* Usuario */}
+      <div className="px-3 py-4 border-t border-uptc-gris-oscuro">
+        <div className="px-3 py-2 mb-2">
+          <p className="text-white text-sm font-medium truncate">{user?.name}</p>
+          <p className="text-gray-500 text-xs">{user?.code}</p>
+        </div>
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-uptc-gris-oscuro hover:text-white transition-colors text-left">
+          <span className="text-base">🚪</span>
+          Cerrar Sesión
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="min-h-screen flex bg-uptc-gris-claro">
+
+      {/* Sidebar desktop — oculto en móvil */}
+      <aside className="hidden md:flex w-64 bg-uptc-negro flex-col flex-shrink-0">
+        <SidebarContent />
+      </aside>
+
+      {/* Overlay móvil */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          {/* Fondo oscuro */}
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setSidebarOpen(false)} />
+          {/* Drawer */}
+          <aside className="absolute left-0 top-0 h-full w-64 bg-uptc-negro flex flex-col z-50">
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
+      {/* Contenido principal */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar */}
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          {/* Botón hamburguesa — solo en móvil */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <div className="space-y-1.5">
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+              <span className="block w-5 h-0.5 bg-gray-600"></span>
+            </div>
+          </button>
+
+          {/* Logo en móvil */}
+          <div className="md:hidden flex items-center gap-2">
+            <div className="bg-uptc-amarillo w-7 h-7 rounded-md flex items-center justify-center">
+              <span className="text-uptc-negro font-bold text-xs">U</span>
+            </div>
+            <span className="text-uptc-negro font-semibold text-sm">Créditos UPTC</span>
+          </div>
+
+          <div className="hidden md:block" /> {/* spacer desktop */}
+
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-uptc-amarillo flex items-center justify-center">
+              <span className="text-uptc-negro font-bold text-xs">
+                {user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('')}
+              </span>
+            </div>
+            <span className="text-sm text-gray-600 font-medium hidden sm:block">{user?.name?.split(' ')[0]}</span>
+          </div>
+        </header>
+
+        {/* Página */}
+        <main className="flex-1 p-4 md:p-6 overflow-auto">
+          {children}
+        </main>
+      </div>
+    </div>
+  );
+}
+--- FIN: ./frontend/src/pages/StudentLayout.jsx ---
+
+--- INICIO: ./frontend/src/pages/Transferencias.jsx ---
+import { useState } from 'react';
+import StudentLayout from './StudentLayout';
+import api from '../services/api';
+import { useNavigate } from 'react-router-dom';
+
+const Transferencias = () => {
+  const navigate = useNavigate();
+  const [form, setForm] = useState({ destinatarioCode: '', cantidad: '' });
+  const [error, setError] = useState('');
+  const [exito, setExito] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+    setExito(null);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.destinatarioCode || !form.cantidad) return setError('Todos los campos son obligatorios');
+    if (Number(form.cantidad) <= 0) return setError('La cantidad debe ser mayor a cero');
+    setLoading(true);
+    try {
+      const res = await api.post('/transfers', {
+        destinatarioCode: form.destinatarioCode,
+        cantidad: Number(form.cantidad),
+      });
+      setExito(res.data);
+      setForm({ destinatarioCode: '', cantidad: '' });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Error al realizar la transferencia');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <StudentLayout>
+      <h1 className="text-2xl font-semibold text-uptc-negro mb-1">Transferir Saldo</h1>
+      <p className="text-gray-500 text-sm mb-6">Envía créditos académicos a otro estudiante de la UPTC</p>
+
+      <div className="max-w-lg">
+        <div className="bg-white rounded-2xl shadow-sm p-6">
+          {exito && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+              <p className="text-green-700 font-semibold text-sm">✅ Transferencia exitosa</p>
+              <p className="text-green-600 text-sm mt-1">
+                Enviaste <strong>{exito.cantidad} crédito(s)</strong> a{' '}
+                <strong>{exito.destinatario.nombre}</strong>
+              </p>
+              <button onClick={() => navigate('/dashboard')} className="mt-3 text-green-700 underline text-sm">
+                Volver al Dashboard
+              </button>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Buscar destinatario
+              </label>
+              <input
+                type="text"
+                name="destinatarioCode"
+                value={form.destinatarioCode}
+                onChange={handleChange}
+                placeholder="Código estudiantil (ej: 202054321)"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Monto a transferir
+              </label>
+              <input
+                type="number"
+                name="cantidad"
+                value={form.cantidad}
+                onChange={handleChange}
+                placeholder="Cantidad de créditos (ej: 2)"
+                min="1"
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-uptc-amarillo"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-uptc-amarillo hover:bg-uptc-amarillo-hover text-uptc-negro font-semibold py-3 rounded-lg transition-colors disabled:opacity-60"
+            >
+              {loading ? 'Procesando...' : 'Transferir Créditos'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </StudentLayout>
+  );
+};
+
+export default Transferencias;
+--- FIN: ./frontend/src/pages/Transferencias.jsx ---
+
+--- INICIO: ./frontend/src/routes/AppRouter.jsx ---
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import Login from '../pages/Login';
+import Dashboard from '../pages/Dashboard';
+import Historial from '../pages/Historial';
+import Transferencias from '../pages/Transferencias';
+import Pagos from '../pages/Pagos';
+import PQRS from '../pages/PQRS';
+import Admin from '../pages/Admin';
+
+const PrivateRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+  return isAuthenticated ? children : <Navigate to="/login" />;
+};
+
+const PublicRoute = ({ children }) => {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center h-screen">Cargando...</div>;
+  return !isAuthenticated ? children : <Navigate to="/dashboard" />;
+};
+
+const AppRouter = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" />} />
+        <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+        <Route path="/historial" element={<PrivateRoute><Historial /></PrivateRoute>} />
+        <Route path="/transferencias" element={<PrivateRoute><Transferencias /></PrivateRoute>} />
+        <Route path="/pagos" element={<PrivateRoute><Pagos /></PrivateRoute>} />
+        <Route path="/pqrs" element={<PrivateRoute><PQRS /></PrivateRoute>} />
+        <Route path="/admin" element={<PrivateRoute><Admin /></PrivateRoute>} />
+      </Routes>
+    </BrowserRouter>
+  );
+};
+
+export default AppRouter;
+
+--- FIN: ./frontend/src/routes/AppRouter.jsx ---
+
+--- INICIO: ./frontend/src/services/api.js ---
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'https://creditos-uptc-backend.onrender.com/api',
+});
+
+// Interceptor: agrega el token JWT automáticamente a cada petición
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Interceptor: si el token expiró, redirige al login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+--- FIN: ./frontend/src/services/api.js ---
+
+--- INICIO: ./frontend/tailwind.config.js ---
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        uptc: {
+          amarillo: '#C8A400',
+          'amarillo-claro': '#F5D700',
+          'amarillo-hover': '#A88A00',
+          negro: '#1A1A1A',
+          'gris-oscuro': '#2C2C2C',
+          'gris-medio': '#5C5C5C',
+          'gris-claro': '#F5F4EF',
+        }
+      }
+    },
+  },
+  plugins: [],
+}
+--- FIN: ./frontend/tailwind.config.js ---
+
+--- INICIO: ./frontend/vercel.json ---
+{"rewrites":[{"source":"/(.*)","destination":"/index.html"}]}
+
+--- FIN: ./frontend/vercel.json ---
+
+--- INICIO: ./frontend/vite.config.js ---
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      }
+    }
+  }
+});
+--- FIN: ./frontend/vite.config.js ---
+
+--- INICIO: ./README.md ---
+# Plataforma de Compra y Gestión de Créditos Académicos — UPTC Sogamoso
+
+Sistema web progresivo (PWA) para la gestión digital de créditos del servicio de restaurante de la Universidad Pedagógica y Tecnológica de Colombia, Seccional Sogamoso.
+
+**Autores:** Juan Esteban León Cárdenas · Julian Leonardo Arias Pita  
+**Asignatura:** Ingeniería del Software II — Primer Semestre 2026  
+**Escuela de Ingeniería de Sistemas y Computación — UPTC Sogamoso**
+
+---
+
+## Funcionalidades
+
+- Registro de estudiantes con validación contra el SIRA institucional
+- Compra de créditos mediante pasarela de pagos (PSE, Nequi, Tarjeta)
+- Transferencia de créditos entre estudiantes (operación atómica)
+- Consulta de saldo e historial de transacciones con filtros
+- Sistema de quejas y soporte (PQRS) con número de ticket único
+- Notificaciones de eventos del sistema
+- Panel administrativo con métricas, gestión de usuarios y transacciones
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
+| Frontend | React 18 + Vite + Tailwind CSS + React Router 6 |
+| Backend | Node.js + Express (monolito modular) |
+| Base de datos | PostgreSQL 17 + Prisma ORM |
+| Autenticación | JWT + bcryptjs |
+| Contenedores | Docker + Docker Compose |
+
+---
+
+## Requisitos previos
+
+- Node.js v20 o superior
+- PostgreSQL 17
+- Git
+
+---
+
+## Instalación y ejecución local
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/JuliaNPit/PlataformadeComprayGestiondeCreditos.git
+cd PlataformadeComprayGestiondeCreditos
+```
+
+### 2. Configurar el backend
+
+```bash
+cd backend
+npm install
+```
+
+Crear el archivo `backend/.env` con el siguiente contenido:
+DATABASE_URL="postgresql://postgres:admin123@localhost:5432/creditos_uptc"
+JWT_SECRET="uptc_creditos_secret_2026"
+JWT_EXPIRES_IN="30m"
+PORT=3000
+NODE_ENV=development
+SIRA_ENABLED=true
+Crear la base de datos `creditos_uptc` en PostgreSQL, luego ejecutar las migraciones:
+
+```bash
+npx prisma migrate dev --name init
+```
+
+Iniciar el backend:
+
+```bash
+node src/index.js
+```
+
+El servidor queda disponible en `http://localhost:3000`
+
+### 3. Configurar el frontend
+
+En otra terminal:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+La aplicación queda disponible en `http://localhost:5173`
+
+---
+
+## Usuarios de prueba (SIRA simulado)
+
+| Código | Nombre | Contraseña | Estado |
+|--------|--------|-----------|--------|
+| 202012345 | Juan Esteban León Cárdenas | 123456 | Activo |
+| 202054321 | Julian Leonardo Arias Pita | 123456 | Activo |
+| 202011111 | María García López | 123456 | Activo |
+| 202022222 | Carlos Pérez Mora | 123456 | Activo |
+| 202033333 | Ana Rodríguez Silva | 123456 | Activo |
+| 202044444 | Luis Martínez Torres | 123456 | INACTIVO |
+
+---
+
+## Estructura del proyecto
+plataforma-creditos-uptc/
+├── backend/
+│   ├── prisma/schema.prisma
+│   └── src/
+│       ├── adapters/        # SIRA simulado + pasarela de pagos
+│       ├── middlewares/     # Autenticación JWT
+│       └── modules/
+│           ├── auth/        # RF01 — Registro y login
+│           ├── wallet/      # RF04 — Saldo e historial
+│           ├── transfers/   # RF03 — Transferencias
+│           ├── payments/    # RF02 — Compra de créditos
+│           ├── pqrs/        # RF05 — Quejas y soporte
+│           ├── notifications/ # RF07 — Notificaciones
+│           └── admin/       # RF06 — Panel administrativo
+└── frontend/
+└── src/
+└── pages/
+├── Login.jsx
+├── Dashboard.jsx
+├── Historial.jsx
+├── Transferencias.jsx
+├── Pagos.jsx
+├── PQRS.jsx
+└── Admin.jsx
+---
+
+## Cobertura de requisitos funcionales
+
+| RF | Descripción | Estado |
+|----|-------------|--------|
+| RF01 | Registro de estudiantes con validación SIRA | ✅ |
+| RF02 | Compra de créditos con pasarela simulada | ✅ |
+| RF03 | Transferencias atómicas entre estudiantes | ✅ |
+| RF04 | Consulta de saldo e historial con filtros | ✅ |
+| RF05 | Sistema PQRS con número de ticket único | ✅ |
+| RF06 | Panel administrativo con métricas | ✅ |
+| RF07 | Notificaciones de eventos | ✅ |
+| RF08 | Interfaces responsivas (móvil y escritorio) | ✅ |
+
+---
+
+## Nota sobre servicios simulados
+
+Por tratarse de un proyecto académico, los servicios externos se implementan como módulos simulados:
+
+- **Pasarela de pagos:** replica la interfaz de PSE/Nequi/Tarjeta sin contactar entidades bancarias reales.
+- **SIRA:** replica la validación de matrícula con un conjunto de códigos estudiantiles de prueba.
+
+En un entorno de producción, estos módulos se reemplazarían por integraciones reales sin modificar la lógica de negocio central.
+--- FIN: ./README.md ---
+

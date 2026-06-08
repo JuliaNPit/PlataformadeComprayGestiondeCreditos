@@ -1,8 +1,9 @@
 const { PrismaClient } = require('@prisma/client');
 const { crearNotificacion } = require('../notifications/notifications.service');
-const { enviarEmail, templates } = require('../notifications/email.service');
-const prisma = new PrismaClient();
+const { enviarEmail, templates } = require('../notifications/emailaws.service');
+const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
 
+const prisma = new PrismaClient();
 const PRECIOS = { 1: 32500, 2: 65000, 3: 97500, 5: 162500, 10: 325000 };
 
 const obtenerOpciones = () => {
@@ -40,22 +41,24 @@ const iniciarCompra = async (userId, { cantidadCreditos, metodo }) => {
   const nuevoSaldo = wallet.balance;
 
   // Notificación en BD
-  await crearNotificacion(userId, {
-    type: 'PAYMENT',
+  crearNotificacion(userId, {
+    type: 'PURCHASE_COMPLETED',
     title: 'Compra exitosa',
     message: `Compraste ${cantidadCreditos} crédito(s). Nuevo saldo: ${nuevoSaldo}`
   }).catch(() => {});
 
-  // Email
+  // 📧 Notificación Email (AWS SES)
   if (user.email) {
     const { subject, html } = templates.compraCreditosExitosa({
-      nombre: user.name,
-      creditos: cantidadCreditos,
-      precio,
-      metodo,
-      nuevoSaldo
+      nombre: user.name, creditos: cantidadCreditos, precio, metodo, nuevoSaldo
     });
-    enviarEmail({ to: user.email, subject, html });
+    enviarEmail({ to: user.email, subject, html }).catch(() => {});
+  }
+
+  // 📱 Notificación SMS (AWS SNS)
+  if (user.phone) {
+    const mensajeSMS = templatesSMS.compraExitosa(cantidadCreditos, nuevoSaldo);
+    enviarSMS({ telefono: user.phone, mensaje: mensajeSMS }).catch(() => {});
   }
 
   return { creditosComprados: cantidadCreditos, precioPagado: precio, metodo, nuevoSaldo };
