@@ -6,7 +6,7 @@ const register = async (req, res) => {
     if (!code || !email || !password || !phone) {
       return res.status(400).json({ error: 'Código, email y contraseña son obligatorios' });
     }
-    const result = await authService.register({ code, email, password });
+    const result = await authService.register({ code, email, password, phone });
     res.status(201).json(result);
   } catch (error) {
     res.status(400).json({ error: error.message });
