@@ -5,7 +5,7 @@ const siraAdapter = require('../../adapters/sira.adapter');
 
 const prisma = new PrismaClient();
 
-const register = async ({ code, email, password }) => {
+const register = async ({ code, email, password, phone }) => {
   // Verificar en SIRA que sea estudiante activo
   const siraData = await siraAdapter.verificarEstudiante(code);
   if (!siraData.activo) {
@@ -24,6 +24,7 @@ const register = async ({ code, email, password }) => {
     data: {
       code,
       email,
+      phone,
       name: siraData.nombre,
       program: siraData.programa,
       password: hashedPassword,

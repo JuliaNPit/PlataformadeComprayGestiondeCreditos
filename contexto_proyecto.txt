@@ -1386,6 +1386,31 @@ const templates = {
     subject: '↙️ Recibiste créditos — UPTC',
     html: `<p>Hola <strong>${nombre}</strong>, recibiste ${cantidad} crédito(s) de ${remitente}. Tu nuevo saldo es ${nuevoSaldo}.</p>`,
   }),
+
+  ticketActualizado: ({ nombre, ticketNumber, titulo, nuevoEstado, mensaje }) => ({
+    subject: `📋 Tu ticket ${ticketNumber} fue actualizado — UPTC`,
+    html: `
+      <p>Hola <strong>${nombre}</strong>,</p>
+      <p>Tu ticket <strong>${ticketNumber}</strong> ("${titulo}") ha cambiado al estado: <strong>${nuevoEstado}</strong>.</p>
+      <p><strong>Respuesta de soporte:</strong> ${mensaje}</p>
+    `
+  }),
+
+  ticketCreado: ({ nombre, ticketNumber, titulo }) => ({
+    subject: `🎫 Ticket Recibido: ${ticketNumber} — UPTC`,
+    html: `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px;">
+        <div style="background:#1A1A1A;padding:16px 24px;border-radius:8px 8px 0 0;">
+          <h2 style="color:#C8A400;margin:0;">Soporte UPTC</h2>
+        </div>
+        <div style="background:#fff;border:1px solid #e0ddd4;padding:24px;border-radius:0 0 8px 8px;">
+          <p style="color:#1A1A1A;">Hola <strong>${nombre}</strong>,</p>
+          <p style="color:#555;">Hemos recibido tu solicitud <strong>${ticketNumber}</strong> ("${titulo}").</p>
+          <p style="color:#555;">Nuestro equipo lo revisará y te notificaremos cuando haya una respuesta.</p>
+        </div>
+      </div>
+    `
+  }),
 };
 
 module.exports = { enviarEmail, templates };
@@ -1510,6 +1535,8 @@ const enviarSMS = async ({ telefono, mensaje }) => {
 const templatesSMS = {
   compraExitosa: (creditos, saldo) => `UPTC: Compraste ${creditos} creditos. Saldo actual: ${saldo}.`,
   transferenciaRecibida: (cantidad, remitente) => `UPTC: Recibiste ${cantidad} creditos de ${remitente}.`,
+  ticketCreado: (ticket) => `UPTC Soporte: Tu ticket ${ticket} fue recibido con exito.`,
+  ticketActualizado: (ticket, estado) => `UPTC Soporte: Tu ticket ${ticket} paso a estado: ${estado}.`
 };
 
 module.exports = { enviarSMS, templatesSMS };
@@ -1568,7 +1595,7 @@ const { enviarEmail, templates } = require('../notifications/emailaws.service');
 const { enviarSMS, templatesSMS } = require('../notifications/smsaws.service'); // <--- Importamos SMS
 
 const prisma = new PrismaClient();
-const PRECIOS = { 1: 32500, 2: 65000, 3: 97500, 5: 162500, 10: 325000 };
+const PRECIOS = { 1: 3900, 2: 7800, 3: 11700, 5: 19500, 10: 39000, 20: 78000 };
 
 const obtenerOpciones = () => {
   return Object.entries(PRECIOS).map(([creditos, precio]) => ({
@@ -1725,10 +1752,34 @@ const crearTicket = async (userId, { type, title, description }) => {
   const tiposValidos = ['PETICION', 'QUEJA', 'RECLAMO', 'SUGERENCIA'];
   if (!tiposValidos.includes(type)) throw new Error('Tipo no válido');
   if (!title || !description) throw new Error('El título y la descripción son obligatorios');
+  
   const ticketNumber = generarNumeroTicket();
-  return await prisma.pQRS.create({
+
+  // 1. Obtener usuario para notificarle
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+
+  // 2. Crear ticket en BD
+  const ticket = await prisma.pQRS.create({
     data: { ticketNumber, type, title, description, status: 'ABIERTO', userId }
   });
+
+  // 3. Enviar Email
+  if (user?.email) {
+    const { subject, html } = templates.ticketCreado({
+      nombre: user.name,
+      ticketNumber,
+      titulo: title
+    });
+    enviarEmail({ to: user.email, subject, html }).catch(err => console.error('Error email PQRS:', err));
+  }
+
+  // 4. Enviar SMS
+  if (user?.phone) {
+    const mensajeSMS = templatesSMS.ticketCreado(ticketNumber);
+    enviarSMS({ telefono: user.phone, mensaje: mensajeSMS }).catch(err => console.error('Error SMS PQRS:', err));
+  }
+
+  return ticket;
 };
 
 const obtenerMisTickets = async (userId) => {
